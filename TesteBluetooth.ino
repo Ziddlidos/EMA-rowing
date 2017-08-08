@@ -1,43 +1,75 @@
 #include <SoftwareSerial.h>
+#include <LiquidCrystal.h>
 
-SoftwareSerial BTSerial(10, 11); // RX | TX
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+SoftwareSerial BTSerial(10, 9); // RX | TX
+
 String flag;
 int sobe = 7; // utilizando um botão de dois terminais nesse pino
 int desce = 6;
-int acaba = 5;
-
+int acaba = 8;
+bool stim = true;
 
 void setup()
 {
+  lcd.begin(16, 2);
+
   pinMode(sobe, INPUT);
   pinMode(desce, INPUT);
   pinMode(acaba, INPUT);
   digitalWrite(sobe, HIGH);
   digitalWrite(desce, HIGH);
 
-
-  pinMode(13, OUTPUT);    // Vamos usar LED onboard como sinalizador de comunicação
   BTSerial.begin(9600);
-  Serial.begin(9600);
 
   inicializacao();
 
+  bool conexao = false;
+  while (conexao == false) {
+    if (BTSerial.available()) {
+      flag = BTSerial.readString();
+      lcd.print(flag);
+      if (flag.equals("a"))  {
+        conexao = true;
+        lcd.clear();
+        lcd.print("Iniciando estimulacao");
+      }
+    }
+  }
 }
 
 void loop()
 {
-  /*
+  int state0 = 0;
+  int state1 = 1;
+  while (stim) {
     if (digitalRead(sobe) == LOW) {
-    // Le o que foi digitado no Monitor Serial do Arduino e envie ao HC-05
-    BTSerial.write("c");
-    BTSerial.print(0);
-    BTSerial.print(0);
-    BTSerial.print(1);
-    digitalWrite(sobe, HIGH);
-    delay(200);
+      digitalWrite(sobe, HIGH);
+      state0 = 1;
     }
-  */
-  delay(1000);
+    else if (digitalRead(desce) == LOW) {
+      digitalWrite(desce, HIGH);
+      state0 = 2;
+    }
+    else if (digitalRead(acaba) == HIGH) {
+      state0 = 3;
+    }
+    else {
+      state0 = 0;
+    }
+    if (state1 != state0) {
+      BTSerial.print(state0);
+      state1 = state0;
+      lcd.clear();
+      lcd.print(state0);
+    }
+    if (state0 == 3) {
+      BTSerial.print(state0);
+      stim = false;
+    }
+    delay(30);
+  }
 }
 
 void inicializacao() {
@@ -49,30 +81,30 @@ void inicializacao() {
   bool conexao = false;
 
   //verificando conexão
-  Serial.println("Conectando...");
+  lcd.clear();
+  lcd.print("Conectando...");
   while (conexao == false) {
     if (BTSerial.available()) {
-      flag = BTSerial.readString();     
-      Serial.println(flag);
+      flag = BTSerial.readString();
       if (flag.equals("a"))  {
         conexao = true;
-        Serial.println("entrou!");
       }
     }
 
   }
 
   BTSerial.write(1);
-
-  Serial.println("Conectado!");
+  lcd.clear();
+  lcd.print("Conectado!");
   delay(1000);
   // pegando parametros de quantidade de canais, corrente e largura de pulso (pw)
   //corrente
   while (digitalRead(acaba) == LOW) {
 
-    Serial.print("Corrente:");
-    Serial.print("\t");
-    Serial.println(corrente);
+    lcd.clear();
+    lcd.print("Corrente:");
+    lcd.setCursor(0, 1);
+    lcd.println(corrente);
 
     if (digitalRead(sobe) == LOW) {
       digitalWrite(sobe, HIGH);
@@ -85,13 +117,13 @@ void inicializacao() {
       delay(100);
     }
   }
-  delay(200);
+  delay(500);
   //largura de pulso
   while (digitalRead(acaba) == LOW) {
-
-    Serial.print("Largura de Pulso::");
-    Serial.print("\t");
-    Serial.println(pw);
+    lcd.clear();
+    lcd.print("Largura de Pulso:");
+    lcd.setCursor(0, 1);
+    lcd.println(pw);
 
     if (digitalRead(sobe) == LOW) {
       digitalWrite(sobe, HIGH);
@@ -104,12 +136,14 @@ void inicializacao() {
       delay(100);
     }
   }
-  delay(200);
+  delay(500);
   //Frequencia
   while (digitalRead(acaba) == LOW) {
-    Serial.print("Frequencia:");
-    Serial.print("\t");
-    Serial.println(freq);
+
+    lcd.clear();
+    lcd.print("Frequencia:");
+    lcd.setCursor(0, 1);
+    lcd.println(freq);
 
     if (digitalRead(sobe) == LOW) {
       digitalWrite(sobe, HIGH);
@@ -122,12 +156,14 @@ void inicializacao() {
       delay(100);
     }
   }
-  delay(200);
+  delay(500);
   //modo de operação
   while (digitalRead(acaba) == LOW) {
-    Serial.print("Qtd de Canais:");
-    Serial.print("\t");
-    Serial.println(mode);
+
+    lcd.clear();
+    lcd.print("Qtd de Canais:");
+    lcd.setCursor(0, 1);
+    lcd.print(mode);
 
     if (digitalRead(sobe) == LOW) {
       digitalWrite(sobe, HIGH);
@@ -140,10 +176,10 @@ void inicializacao() {
       delay(100);
     }
   }
-  delay(200);
+  delay(500);
 
   // enviando dados pela serial (bluetooth)
-  BTSerial.write("c");//marcador de corrente
+  BTSerial.print("c");//marcador de corrente
 
   if (qtdAlgarismos(corrente) == 3) {
     BTSerial.print(corrente);
@@ -156,7 +192,7 @@ void inicializacao() {
     BTSerial.print(corrente);
   }
 
-  BTSerial.write("p");//marcador de largura de pulso
+  BTSerial.print("p");//marcador de largura de pulso
 
   if (qtdAlgarismos(pw) == 3) {
     BTSerial.print(pw);
@@ -169,7 +205,7 @@ void inicializacao() {
     BTSerial.print(pw);
   }
 
-  BTSerial.write("f");//marcador de frequecia
+  BTSerial.print("f");//marcador de frequecia
 
   if (qtdAlgarismos(freq) == 3) {
     BTSerial.print(freq);
@@ -182,7 +218,7 @@ void inicializacao() {
     BTSerial.print(freq);
   }
 
-  BTSerial.write("m");//marcador do modo
+  BTSerial.print("m");//marcador do modo
 
   if (qtdAlgarismos(mode) == 3) {
     BTSerial.print(mode);
