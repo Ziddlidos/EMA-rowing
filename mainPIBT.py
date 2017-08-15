@@ -11,7 +11,7 @@ import bluetooth
 # python -m serial.tools.list_ports    para saber as portas no Linux Ou py no Windows
 
 stimulatorPort = '/dev/ttyUSB0' #linux
-bd_addr = '98:D3:32:20:A2:5B'#endereco do HC-05 conectado ao arduino
+bd_addr = '98:D3:32:10:B0:63'#endereco do HC-05 conectado ao arduino
 port = 1
 
 running = True
@@ -35,20 +35,22 @@ def stim_setup():
     
     for cont in range(4):
         flag = sock.recv(1)
+        print(flag)
         if flag == b'c':
             current = int(sock.recv(3))
-            time.sleep(0.1)
+            time.sleep(0.5)
         elif flag == b'p':
             pw = int(sock.recv(3))
-            time.sleep(0.1)
+            time.sleep(0.5)
         elif flag == b'f':
             freq = int(sock.recv(3))
-            time.sleep(0.1)
+            time.sleep(0.5)
         elif flag == b'm':
             mode = int(sock.recv(3))
-            time.sleep(0.1)
+            time.sleep(0.5)
 
-  
+
+    print(current,pw,mode,freq)
     canais = channels(mode)
     
     # Os parametros sao frequencias e canais
