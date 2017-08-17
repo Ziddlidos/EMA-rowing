@@ -3,12 +3,13 @@
 
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
-SoftwareSerial BTSerial(10, 9); // RX | TX
+SoftwareSerial BTSerial(9, 10); // RX | TX
 
 String flag;
-int sobe = 7; // utilizando um botão de dois terminais nesse pino
-int desce = 6;
-int acaba = 8;
+int sobe = 8; // utilizando um botão de dois terminais nesse pino
+int desce = 7;
+int acaba = 6;
+
 bool stim = true;
 
 void setup()
@@ -20,6 +21,7 @@ void setup()
   pinMode(acaba, INPUT);
   digitalWrite(sobe, HIGH);
   digitalWrite(desce, HIGH);
+  digitalWrite(acaba, HIGH);
 
   BTSerial.begin(9600);
 
@@ -47,13 +49,21 @@ void loop()
     if (digitalRead(sobe) == LOW) {
       digitalWrite(sobe, HIGH);
       state0 = 1;
+      lcd.clear();
+      lcd.print("Extensao");
     }
     else if (digitalRead(desce) == LOW) {
       digitalWrite(desce, HIGH);
       state0 = 2;
+      lcd.clear();
+      lcd.print("Contracao");
     }
-    else if (digitalRead(acaba) == HIGH) {
+    else if (digitalRead(acaba) == LOW) {
+      digitalWrite(acaba, HIGH);
       state0 = 3;
+      
+      lcd.clear();
+      lcd.print("Fim");
     }
     else {
       state0 = 0;
@@ -61,8 +71,6 @@ void loop()
     if (state1 != state0) {
       BTSerial.print(state0);
       state1 = state0;
-      lcd.clear();
-      lcd.print(state0);
     }
     if (state0 == 3) {
       BTSerial.print(state0);
@@ -99,10 +107,10 @@ void inicializacao() {
   delay(1000);
   // pegando parametros de quantidade de canais, corrente e largura de pulso (pw)
   //corrente
-  while (digitalRead(acaba) == LOW) {
+  lcd.clear();
+  lcd.print("Corrente:");
+  while (digitalRead(acaba) == HIGH) {
 
-    lcd.clear();
-    lcd.print("Corrente:");
     lcd.setCursor(0, 1);
     lcd.println(corrente);
 
@@ -117,11 +125,13 @@ void inicializacao() {
       delay(100);
     }
   }
+
   delay(500);
   //largura de pulso
-  while (digitalRead(acaba) == LOW) {
-    lcd.clear();
-    lcd.print("Largura de Pulso:");
+  lcd.clear();
+  lcd.print("Largura de Pulso:");
+  while (digitalRead(acaba) == HIGH) {
+
     lcd.setCursor(0, 1);
     lcd.println(pw);
 
@@ -136,12 +146,14 @@ void inicializacao() {
       delay(100);
     }
   }
+  digitalWrite(acaba, HIGH);
   delay(500);
   //Frequencia
-  while (digitalRead(acaba) == LOW) {
 
-    lcd.clear();
-    lcd.print("Frequencia:");
+  lcd.clear();
+  lcd.print("Frequencia:");
+  while (digitalRead(acaba) == HIGH) {
+
     lcd.setCursor(0, 1);
     lcd.println(freq);
 
@@ -156,12 +168,14 @@ void inicializacao() {
       delay(100);
     }
   }
+  digitalWrite(acaba, HIGH);
   delay(500);
   //modo de operação
-  while (digitalRead(acaba) == LOW) {
 
-    lcd.clear();
-    lcd.print("Qtd de Canais:");
+  lcd.clear();
+  lcd.print("Qtd de Canais:");
+  while (digitalRead(acaba) == HIGH) {
+
     lcd.setCursor(0, 1);
     lcd.print(mode);
 
@@ -176,6 +190,7 @@ void inicializacao() {
       delay(100);
     }
   }
+  digitalWrite(acaba, HIGH);
   delay(500);
 
   // enviando dados pela serial (bluetooth)
@@ -230,7 +245,8 @@ void inicializacao() {
     BTSerial.print(0);
     BTSerial.print(mode);
   }
-
+  lcd.clear();
+  lcd.print("Enviando");
 
 
 }
