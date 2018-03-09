@@ -357,7 +357,7 @@ void inicializacao() {
   delay(500);
 
   // enviando dados pela serial (bluetooth)
-  BTSerial.print("c");//marcador de corrente
+  BTSerial.print("c");//marcador de corrente_quad
 
   if (qtdAlgarismos(corrente_quad) == 3) {
     BTSerial.print(corrente_quad);
@@ -369,7 +369,20 @@ void inicializacao() {
     BTSerial.print(0);
     BTSerial.print(corrente_quad);
   }
+  
+  BTSerial.print("x");//marcador de corrente_isq
 
+  if (qtdAlgarismos(corrente_isq) == 3) {
+    BTSerial.print(corrente_isq);
+  } else if (qtdAlgarismos(corrente_isq) == 2) {
+    BTSerial.print(0);
+    BTSerial.print(corrente_isq);
+  } else if (qtdAlgarismos(corrente_isq) == 1) {
+    BTSerial.print(0);
+    BTSerial.print(0);
+    BTSerial.print(corrente_isq);
+  }
+  
   BTSerial.print("p");//marcador de largura de pulso
 
   if (qtdAlgarismos(pw) == 3) {
