@@ -4,7 +4,7 @@
 #include <LiquidCrystal.h>
 
 
-LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
 SoftwareSerial BTSerial(8, 9); // RX | TX
 
 String flag;
@@ -25,7 +25,7 @@ void setup()
   digitalWrite(desce, HIGH);
   digitalWrite(acaba, HIGH);
 
-  BTSerial.begin(9600);
+  BTSerial.begin(115200);
 
   inicializacao();
 
