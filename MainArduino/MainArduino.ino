@@ -84,7 +84,8 @@ void loop()
 
 void inicializacao() {
 
-  int corrente = 10;
+  int corrente_quad = 10;
+  int corrente_isq = 10;
   int pw = 200;
   int freq = 50;
   int mode = 2;
@@ -118,14 +119,14 @@ void inicializacao() {
   lcd.print("Conectado!");
   delay(1000);
   // pegando parametros de quantidade de canais, corrente e largura de pulso (pw)
-  //corrente
+  //corrente1 - quadriceps
   lcd.clear();
-  lcd.print("Corrente:");
+  lcd.print("Corrente Quad.:");
   while (digitalRead(acaba) == HIGH) {
 
     
     lcd.setCursor(0, 1);
-    lcd.print(corrente);
+    lcd.print(corrente_quad);
     lcd.print("     ");
 
     upBTN = digitalRead(sobe);
@@ -138,7 +139,7 @@ void inicializacao() {
       }
       lastSwitchTimeUp = millis();
       lastReadingUp = upBTN;
-      corrente = corrente + 2;
+      corrente_quad = corrente_quad + 2;
       //delay(100);
     }
     if (upBTN == HIGH) {
@@ -153,9 +154,58 @@ void inicializacao() {
       }
       lastSwitchTimeDown = millis();
       lastReadingDown = downBTN;
-      corrente = corrente - 2;
-      if (corrente < 0) {
-        corrente = 0;
+      corrente_quad = corrente_quad - 2;
+      if (corrente_quad < 0) {
+        corrente_quad = 0;
+      }
+      //delay(100);      
+    }
+    if (downBTN == HIGH) {
+      lastReadingDown = downBTN;
+      switchTimeDown = longSwitchTime;
+      lastSwitchTimeDown = 0;
+    }
+  }
+
+  delay(500);
+  //corrente2 - isquiotibiais
+  lcd.clear();
+  lcd.print("Corrente Isq.:");
+  while (digitalRead(acaba) == HIGH) {
+
+    
+    lcd.setCursor(0, 1);
+    lcd.print(corrente_isq);
+    lcd.print("     ");
+
+    upBTN = digitalRead(sobe);
+    downBTN = digitalRead(desce);
+    //delay(100);
+    if (upBTN == LOW && ((((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) || lastReadingUp == HIGH)) {
+      //digitalWrite(sobe, HIGH);
+      if (((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) {
+        switchTimeUp = shortSwitchTime;
+      }
+      lastSwitchTimeUp = millis();
+      lastReadingUp = upBTN;
+      corrente_isq = corrente_isq + 2;
+      //delay(100);
+    }
+    if (upBTN == HIGH) {
+      lastReadingUp = upBTN;
+      switchTimeUp = longSwitchTime;
+      lastSwitchTimeUp = 0;
+    }
+    if (downBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
+      //digitalWrite(desce, HIGH);
+      if (((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) {
+        switchTimeDown = shortSwitchTime;
+      }
+      lastSwitchTimeDown = millis();
+      lastReadingDown = downBTN;
+      corrente_isq = corrente_isq - 2;
+      if (corrente_isq < 0) {
+        corrente_isq = 0;
       }
       //delay(100);      
     }
@@ -234,10 +284,10 @@ void inicializacao() {
       freq = freq + 5;
       //delay(100);
     }
-    if (downBTN == HIGH) {
-      lastReadingDown = downBTN;
-      switchTimeDown = longSwitchTime;
-      lastSwitchTimeDown = 0;
+    if (upBTN == HIGH) {
+      lastReadingUp = upBTN;
+      switchTimeUp = longSwitchTime;
+      lastSwitchTimeUp = 0;
     }
     if (downBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
       //digitalWrite(desce, HIGH);
@@ -271,7 +321,7 @@ void inicializacao() {
 
     upBTN = digitalRead(sobe);
     downBTN = digitalRead(desce);
-    if (downBTN == LOW && ((((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) || lastReadingUp == HIGH)) {
+    if (upBTN == LOW && ((((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) || lastReadingUp == HIGH)) {
       //digitalWrite(sobe, HIGH);
       if (((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) {
         switchTimeUp = shortSwitchTime;
@@ -286,7 +336,7 @@ void inicializacao() {
       switchTimeDown = longSwitchTime;
       lastSwitchTimeDown = 0;
     }
-    if (upBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
+    if (downBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
       //digitalWrite(desce, HIGH);
       if (((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) {
         switchTimeDown = shortSwitchTime;
@@ -299,29 +349,42 @@ void inicializacao() {
       }
       //delay(100);
     }
-    if (downBTN == HIGH) {
-      lastReadingDown = downBTN;
-      switchTimeDown = longSwitchTime;
-      lastSwitchTimeDown = 0;
+    if (upBTN == HIGH) {
+      lastReadingUp = upBTN;
+      switchTimeUp = longSwitchTime;
+      lastSwitchTimeUp = 0;
     }
   }
   //digitalWrite(acaba, HIGH);
   delay(500);
 
   // enviando dados pela serial (bluetooth)
-  BTSerial.print("c");//marcador de corrente
+  BTSerial.print("c");//marcador de corrente_quad
 
-  if (qtdAlgarismos(corrente) == 3) {
-    BTSerial.print(corrente);
-  } else if (qtdAlgarismos(corrente) == 2) {
+  if (qtdAlgarismos(corrente_quad) == 3) {
+    BTSerial.print(corrente_quad);
+  } else if (qtdAlgarismos(corrente_quad) == 2) {
     BTSerial.print(0);
-    BTSerial.print(corrente);
-  } else if (qtdAlgarismos(corrente) == 1) {
+    BTSerial.print(corrente_quad);
+  } else if (qtdAlgarismos(corrente_quad) == 1) {
     BTSerial.print(0);
     BTSerial.print(0);
-    BTSerial.print(corrente);
+    BTSerial.print(corrente_quad);
   }
+  
+  BTSerial.print("x");//marcador de corrente_isq
 
+  if (qtdAlgarismos(corrente_isq) == 3) {
+    BTSerial.print(corrente_isq);
+  } else if (qtdAlgarismos(corrente_isq) == 2) {
+    BTSerial.print(0);
+    BTSerial.print(corrente_isq);
+  } else if (qtdAlgarismos(corrente_isq) == 1) {
+    BTSerial.print(0);
+    BTSerial.print(0);
+    BTSerial.print(corrente_isq);
+  }
+  
   BTSerial.print("p");//marcador de largura de pulso
 
   if (qtdAlgarismos(pw) == 3) {

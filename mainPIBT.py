@@ -11,7 +11,8 @@ import bluetooth
 # python -m serial.tools.list_ports    para saber as portas no Linux Ou py no Windows
 
 stimulatorPort = '/dev/ttyUSB0' #linux
-bd_addr = '98:D3:32:10:B0:63'#endereco do HC-05 conectado ao arduino
+#bd_addr = '98:D3:32:10:B0:63'#endereco do HC-05 conectado ao arduino
+bd_addr = '98:D3:31:90:5F:BE' #endereco do Lara-Stim (HC-05) conectado ao arduino
 port = 1
 
 running = True
@@ -33,11 +34,14 @@ stim = stimulator.Stimulator(serialStimulator) #chama a classe
     
 def stim_setup():
     
-    for cont in range(4):
+    for cont in range(5):
         flag = sock.recv(1)
         print(flag)
         if flag == b'c':
-            current = int(sock.recv(3))
+            current_A = int(sock.recv(3))
+            time.sleep(0.5)
+        elif flag == b'x':
+            current_B = int(sock.recv(3))
             time.sleep(0.5)
         elif flag == b'p':
             pw = int(sock.recv(3))
@@ -50,13 +54,13 @@ def stim_setup():
             time.sleep(0.5)
 
 
-    print(current,pw,mode,freq)
+    print(current_A,current_B,pw,mode,freq)
     canais = channels(mode)
     
     # Os parametros sao frequencias e canais
     stim.initialization(freq,canais)
 
-    return [current,pw,mode,canais]
+    return [current_A,current_B,pw,mode,canais]
 
 # mode eh a quantidade de canais utilizados e channels e como a funcao stim.inicialization interpreta esse canais
 # logo, eh necessario codificar a quantidade de canais nessa forma binaria ,o mais a esquerda eh o 8 e o mais a direita eh o 1
@@ -72,12 +76,18 @@ def channels(mode):
 
     return channels
 
-def running(current,pw,mode,channels):
+def running(current_A,current_B,pw,mode,channels):
     
     #cria um vetor com as correntes para ser usado pela funcao update
     current_str = []
-    for n in range(mode):
-        current_str.append(current)
+    if mode == 2:
+        current_str.append(current_A)
+        current_str.append(current_B)
+    elif mode == 4: # Canais 1 e 2 terao corrente A e canais 3 e 4 corrent B
+        current_str.append(current_A)
+        current_str.append(current_A)
+        current_str.append(current_B)
+        current_str.append(current_B)
         
     sock.send("a") # envia 'a' sinalizando o inicio da estimulacao
     print("running")
@@ -112,9 +122,9 @@ def running(current,pw,mode,channels):
             #colocando-se pw no canal que se quer estimular
     
 def main():
-    [current,pw,mode,channels] = stim_setup()
-    print(current,pw,mode,channels)
-    running(current,pw,mode,channels)
+    [current_A,current_B,pw,mode,channels] = stim_setup()
+    print(current_A,current_B,pw,mode,channels)
+    running(current_A,current_B,pw,mode,channels)
 
     stim.stop()
     sock.close()
