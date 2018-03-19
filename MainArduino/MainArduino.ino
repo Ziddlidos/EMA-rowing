@@ -2,7 +2,7 @@
 #include <LiquidCrystal.h>
 
 
-LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
 SoftwareSerial BTSerial(8, 9); // RX | TX
 
 String flag;
@@ -23,7 +23,7 @@ void setup()
   digitalWrite(desce, HIGH);
   digitalWrite(acaba, HIGH);
 
-  BTSerial.begin(9600);
+  BTSerial.begin(115200);
 
   inicializacao();
 
@@ -282,10 +282,10 @@ void inicializacao() {
       freq = freq + 5;
       //delay(100);
     }
-    if (downBTN == HIGH) {
-      lastReadingDown = downBTN;
-      switchTimeDown = longSwitchTime;
-      lastSwitchTimeDown = 0;
+    if (upBTN == HIGH) {
+      lastReadingUp = upBTN;
+      switchTimeUp = longSwitchTime;
+      lastSwitchTimeUp = 0;
     }
     if (downBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
       //digitalWrite(desce, HIGH);
@@ -319,7 +319,7 @@ void inicializacao() {
 
     upBTN = digitalRead(sobe);
     downBTN = digitalRead(desce);
-    if (downBTN == LOW && ((((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) || lastReadingUp == HIGH)) {
+    if (upBTN == LOW && ((((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) || lastReadingUp == HIGH)) {
       //digitalWrite(sobe, HIGH);
       if (((millis() - lastSwitchTimeUp) > switchTimeUp) && lastSwitchTimeUp != 0) {
         switchTimeUp = shortSwitchTime;
@@ -334,7 +334,7 @@ void inicializacao() {
       switchTimeDown = longSwitchTime;
       lastSwitchTimeDown = 0;
     }
-    if (upBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
+    if (downBTN == LOW && ((((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) || lastReadingDown == HIGH)) {
       //digitalWrite(desce, HIGH);
       if (((millis() - lastSwitchTimeDown) > switchTimeDown) && lastSwitchTimeDown != 0) {
         switchTimeDown = shortSwitchTime;
@@ -347,10 +347,10 @@ void inicializacao() {
       }
       //delay(100);
     }
-    if (downBTN == HIGH) {
-      lastReadingDown = downBTN;
-      switchTimeDown = longSwitchTime;
-      lastSwitchTimeDown = 0;
+    if (upBTN == HIGH) {
+      lastReadingUp = upBTN;
+      switchTimeUp = longSwitchTime;
+      lastSwitchTimeUp = 0;
     }
   }
   //digitalWrite(acaba, HIGH);

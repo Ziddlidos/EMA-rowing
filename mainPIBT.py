@@ -11,7 +11,8 @@ import bluetooth
 # python -m serial.tools.list_ports    para saber as portas no Linux Ou py no Windows
 
 stimulatorPort = '/dev/ttyUSB0' #linux
-bd_addr = '98:D3:32:10:B0:63'#endereco do HC-05 conectado ao arduino
+#bd_addr = '98:D3:32:10:B0:63'#endereco do HC-05 conectado ao arduino
+bd_addr = '98:D3:31:90:5F:BE' #endereco do Lara-Stim (HC-05) conectado ao arduino
 port = 1
 
 running = True
@@ -33,7 +34,7 @@ stim = stimulator.Stimulator(serialStimulator) #chama a classe
     
 def stim_setup():
     
-    for cont in range(4):
+    for cont in range(5):
         flag = sock.recv(1)
         print(flag)
         if flag == b'c':
