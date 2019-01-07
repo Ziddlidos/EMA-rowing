@@ -5,14 +5,14 @@ Elaborada por: Breno Ferreira`
 
 ---
 
-##Modificações significativas
+## Modificações significativas
 
 >Dispositivo com comunicação via cabo USB.
 Movimentos podem ser selecionados em **oito** estados diferentes entre as combinações de Flexão **e/ou** Extensão **com/sem** canais auxiliares (**anexo tabela**).
 
 
 
-##Nota importante
+## Nota importante
 >Sempre verificar se está utilizando a ultima versão disponível no **GitHub**, pois o _Handle_ geralmente não encontra-se no Laboratório para a atualização do _firmware_ do **Arduino**.
 
 ---
