@@ -27,7 +27,7 @@ Nesta versão, o funcionamento do dispositivo _Handle_ FES-Rowing é através de
 ## Setup
 
 O **Raspberry** pi necessita de uma fonte alimentadora (5V 2A e cabo micro USB)
-As posições de ligação dos dispositivos nas portas USB não são específicas, o _script_ faz a checagem das Portas COM.
+As posições de ligação dos dispositivos nas portas USB não são específicas, o _script_ faz a conferência das Portas COM.
 O **Arduino** é alimentado por um cabo USB conectado em qualquer porta USB do **Raspberry**. Necessita-se de um cabo longo para não limitar o movimento do _Handle_.
 O Eletroestimulador é conectado a qualquer Porta USB do **Raspberry** e em modo _SCIENCE_. Apesar da flexibilidade de combinações de movimentos (Flexão e/ou Extensão com/sem canais auxiliares), os canais estão pré-definidos em _software_ da seguinte forma:
 
@@ -45,7 +45,7 @@ São estabelecidas as conexões das portas COM do **Arduino** e estimulador com 
 ### Etapa 02 – Seleção dos Movimentos
 É informado do _display_ o movimento desejado, e através dos botões direita e esquerda do _Handle_ alterna-se entre Flexão e/ou Extensão. O botão vermelho serve para selecionar o movimento indicado e passar para a próxima etapa.
 ### Etapa 03 – Seleção de Amplitude
-É informado no _display_ o valor da amplitude de cada canal selecionado na etapa anterior. Utiliza-se o botão da direita para aumentar o valor e da esquerda para diminuir. O botão vermelho serve para selecionar a amplitude do canal indicado e passar para a próxima amplitude até acabar e passar para a próxima etapa.
+É informado no _display_ o valor da amplitude de cada canal selecionado na etapa anterior. Utiliza-se o botão da direita para aumentar o valor e da esquerda para diminuir. O botão vermelho serve para selecionar a amplitude do canal indicado e passar para a próxima amplitude até completar e passar para a próxima etapa.
 ### Etapa 04 – Seleção da Largura de pulso
 É informado no _display_ o valor da Largura de pulso única para todos os canais selecionados. Utiliza-se o botão da direita para aumentar o valor e da esquerda para diminuir. O botão vermelho serve para selecionar a largura de pulso indicada e passar para a próxima etapa.
 
