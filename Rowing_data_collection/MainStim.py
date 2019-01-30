@@ -4,10 +4,29 @@ import time
 # import bluetooth
 import serial.tools.list_ports
 import io
+from multiprocessing.connection import Client
+import threading
+# import socket
+
+#TODO close connection to serial port on exit() and stop stimulation
+
+stimulation = False
+
+connection = False
+try:
+    address = ('localhost', 5000)
+    server = Client(address)
+
+    # server = socket.socket()
+    # server.connect(address)
+    server.send('buttons')
+    connection = True
+
+    # print(a)
+except:
+    print('No server found in address {}'.format(address))
 
 a = serial.tools.list_ports.comports()
-# print(a)
-
 for w in a:
     print("\tPort:", w.device, "\tSerial#:", w.serial_number, "\tDesc:", w.description)
     if w.description == 'USB2.0-Serial':
@@ -19,9 +38,9 @@ for w in a:
 # stimulatorPort = 'stimPort'
 sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
 time.sleep(5)
-
+current_str = [0,0,0,0,0,0,0,0]
 running = True
-stimulation = False
+
 
 print("Conectando")
 
@@ -31,6 +50,7 @@ statWait = True
 sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
 # while statSend == True:
 # time.sleep(1)
+# TODO make handshake
 '''
 temp= sock.readline()
 Temp = temp.decode()
@@ -54,12 +74,10 @@ if stimulation:
     stim = stimulator.Stimulator(serialStimulator)  # chama a classe
 # time.sleep(3)
 
-
 print('recebeu parametros:')
 print(parametros)
 
 flag = parametros
-
 
 def stim_setup():
     print(flag)
@@ -78,7 +96,6 @@ def stim_setup():
         stim.initialization(freq, canais)
 
     return [current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, canais]
-
 
 # mode eh a quantidade de canais utilizados e channels e como a funcao stim.inicialization interpreta esse canais
 # logo, eh necessario codificar a quantidade de canais nessa forma binaria ,o mais a esquerda eh o 8 e o mais a direita eh o 1
@@ -102,9 +119,19 @@ def channels(mode):
     return this_channels
 
 
+def change_current():
+    global current_str
+    print('Thread started')
+    while True:
+        current_str = input('New current: ')
+        current_str = current_str.split()
+        current_str = [int(x) for x in current_str]
+        print(current_str)
+
 # channels = 0b11111111
 
 def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, this_channels):
+    global current_str
     # cria um vetor com as correntes para ser usado pela funcao update
     current_str = [current_CH12, current_CH12, current_CH34, current_CH34, current_CH56, current_CH56, current_CH78,
                    current_CH78]
@@ -125,134 +152,121 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
         current_str.append(current_CH34)
     '''
     sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
-    print("running")
+    # print("running")
 
     state = 0
-    print(state)
+    # print(state)
+    stim_state = 'stop'
+    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
     while state != 3:
         while sock.inWaiting() == 0:
             pass
         state = int(sock.read(1))  # state = int(sock.read(1))
-        print(state)
+        # print(state)
         if mode == 1:  # Extensão B00000011 
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, 0, 0, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
         elif mode == 2:  # Flexão B00001100
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
-                # stim.stop()
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+            # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, 0, 0], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
         elif mode == 3:  # Extensão + Flexão B00001111
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, 0, 0, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, 0, 0], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
         elif mode == 4:  # (Extensão & Aux_Ext) B00110011
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, pw, pw, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
         elif mode == 5:  # (Extensão & Aux_Ext) + Flexão B00111111
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, pw, pw, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, 0, 0], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
         elif mode == 6:  # (Flexão & Aux_Flex) B11001100
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, pw, pw], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
         elif mode == 7:  # Extensao + (Flexão & Aux_Flex) B11001111
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, 0, 0, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, pw, pw], current_str)
-                print("Flexao")
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
         elif mode == 8:  # (Extensão & Aux_Ext) + (Flexão & Aux_Flex) B11111111
             if state == 0:
-                print("Parado")
-                if stimulation:
-                    stim.update(this_channels, [0, 0, 0, 0, 0, 0, 0, 0], current_str)
+                stim_state = 'stop'
+                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                if stimulation:
-                    stim.update(this_channels, [pw, pw, 0, 0, pw, pw, 0, 0], current_str)
-                print("Extensao")
+                stim_state = 'extension'
+                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
             elif state == 2:
-                if stimulation:
-                    stim.update(this_channels, [0, 0, pw, pw, 0, 0, pw, pw], current_str)
-                print("Flexao")
-                # para usar 6 ou 8 canais eh necessario copiar o codigo logo acima e mudar somente o vetor pw,
+                stim_state = 'flexion'
+                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
+            # para usar 6 ou 8 canais eh necessario copiar o codigo logo acima e mudar somente o vetor pw,
             # colocando-se pw no canal que se quer estimular
+        if stimulation:
+            stim.update(this_channels, pw_str, current_str)
+        # print("Flexao")
+        if connection:
+            # server.send(dict({'state':'Flexão', 'current':current_str}))
+            server.send([time.time(), stim_state, current_str])
 
 
 def main():
     [current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels] = stim_setup()
     print(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
+
+    t = threading.Thread(target=change_current)
+    t.start()
     running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
 
     if stimulation:
