@@ -11,15 +11,16 @@ import serial.tools.list_ports
 
 connection = False
 try:
-    address = ('localhost', 5000)
+    address = ('localhost', 50001)
     # server = socket.socket()
     # server.connect(address)
-    server = Client(('localhost', 5000))
+    server = Client(address)
     server.send('imus')
+    connection = True
 except:
     print('No server found in address {}'.format(address))
 
-addresses = [1,2]
+addresses = [1,2,3,4,5,6,7,8]
 command = 0
 
 a = serial.tools.list_ports.comports()

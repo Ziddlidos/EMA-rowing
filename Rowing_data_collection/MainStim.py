@@ -14,7 +14,7 @@ stimulation = False
 
 connection = False
 try:
-    address = ('localhost', 5000)
+    address = ('localhost', 50001)
     server = Client(address)
 
     # server = socket.socket()
@@ -255,7 +255,7 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
             # colocando-se pw no canal que se quer estimular
         if stimulation:
             stim.update(this_channels, pw_str, current_str)
-        print(stim_state)
+        print(stim_state, current_str)
         if connection:
             # server.send(dict({'state':'Flexão', 'current':current_str}))
             server.send([time.time(), stim_state, current_str])
