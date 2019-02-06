@@ -14,36 +14,48 @@ from pyqtgraph.Qt import QtGui, QtCore
 
 # TODO include ctrl+C catching in all scripts
 
-app = QtGui.QApplication([])
-# app.aboutToQuit.connect(on_exit)
-win = pg.GraphicsWindow(title="Basic plotting examples")
-win.resize(1000,600)
-win.setWindowTitle('pyqtgraph example: Plotting')
-pg.setConfigOptions(antialias=True)
-my_plot = win.addPlot(title="Updating plot")
+real_time_plot = False
+
 size_of_graph = 10000
-my_plot.setRange(xRange=(0,size_of_graph), yRange=(-50,50))
-my_plot.enableAutoRange('xy', False)
-
-curve_x = my_plot.plot(pen='b') # EMG
-
 x = multiprocessing.Array('d', size_of_graph)
+y = multiprocessing.Array('d', size_of_graph)
 
 for i in range(size_of_graph):
     x[i] = 0
-# x = [0] * 1000
-# ptr = 0
-def update():
-    global curve_x, x, ptr, p6
-    # print('New data: ', x[-1])
-    curve_x.setData(x[-size_of_graph:-1])
+    y[i] = 0
+
+
+if real_time_plot:
+    app = QtGui.QApplication([])
+    # app.aboutToQuit.connect(on_exit)
+    win = pg.GraphicsWindow(title="Basic plotting examples")
+    win.resize(1000,600)
+    win.setWindowTitle('pyqtgraph example: Plotting')
+    pg.setConfigOptions(antialias=True)
+    my_plot = win.addPlot(title="Updating plot")
+
+    my_plot.setRange(xRange=(0,size_of_graph), yRange=(-50,50))
+    my_plot.enableAutoRange('xy', False)
+
+    curve_x = my_plot.plot(pen='b') # EMG
+    curve_y = my_plot.plot(pen='r') # EMG
+
+
+    # x = [0] * 1000
     # ptr = 0
-    # if ptr == 0:
-    #     my_plot.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
-    # ptr += 1
-timer = QtCore.QTimer()
-timer.timeout.connect(update)
-timer.start(15)
+
+    def update():
+        global curve_x, x, curve_y, y, ptr, p6
+        # print('New data: ', x[-1])
+        curve_x.setData(x[-size_of_graph:-1])
+        curve_y.setData(y[-size_of_graph:-1])
+        # ptr = 0
+        # if ptr == 0:
+        #     my_plot.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
+        # ptr += 1
+    timer = QtCore.QTimer()
+    timer.timeout.connect(update)
+    timer.start(15)
 
 # imu_data = []
 
@@ -88,7 +100,7 @@ def do_stuff(client, source):
         [f.write(str(i)[1:-1].replace('[','').replace(']','')+'\r\n') for i in server_data]
         f.close()
 
-def do_stuff_socket(client, source, x):
+def do_stuff_socket(client, source, x, channel):
     # global x
     server_data = []
     # signal.signal(signal.SIGINT, on_exit)
@@ -103,6 +115,7 @@ def do_stuff_socket(client, source, x):
                 # print('Data: ', data)
                 # print('Data length: ', len(data))
                 number_of_packets = math.floor(len(data)/8)
+                # print(number_of_packets)
                 packets = []
                 for i in range(number_of_packets):
                     this_packet = float(struct.unpack('!d', data[i*8:i*8+8])[0])
@@ -114,10 +127,14 @@ def do_stuff_socket(client, source, x):
                 # print('Last 4 bytes unpacked: ', struct.unpack('!f', data[-4:]))
                 # print('')
                 # x.append(packets)
-                x[0:-number_of_packets] = x[number_of_packets:]
-                x[-number_of_packets:] = packets
+                if channel == 1:
+                    x[0:-number_of_packets] = x[number_of_packets:]
+                    x[-number_of_packets:] = packets
+                elif channel == 2:
+                    y[0:-number_of_packets] = y[number_of_packets:]
+                    y[-number_of_packets:] = packets
                 server_data.append([time.time(), packets])
-
+                # print(packets[0])
                 # print(imu_data)
                 # print(source, data)
                 # time.sleep(1)
@@ -129,7 +146,7 @@ def do_stuff_socket(client, source, x):
         print('Exception raised: ', str(e))
         print('Connection  to {} closed'.format(source))
         now = datetime.datetime.now()
-        filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'
+        filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_ch' + str(channel) + '_data.txt'
         f = open(filename, 'w+')
         # server_timestamp, client_timestamp, msg
         # if IMU, msg = id, quaternions
@@ -156,7 +173,7 @@ def server(address, port):
         # signal.pause()
 
 
-def socket_server(address, port, x):
+def socket_server(address, port, x, channel):
     s = socket.socket()
     s.bind((address, port))
     s.listen()
@@ -172,16 +189,20 @@ def socket_server(address, port, x):
             print('Disconnected from {}'.format(addr))
             break
         print('Source: {}'.format(source))
-        p = multiprocessing.Process(target=do_stuff_socket, args=(conn, source, x))
+        p = multiprocessing.Process(target=do_stuff_socket, args=(conn, source, x, channel))
         # do_stuff(client, addr)
         p.start()
+
 
 if __name__ == '__main__':
     mserver = multiprocessing.Process(target=server, args=('', 50001))
     # mserver = threading.Thread(target=server, args=(('', 50001),))
     mserver.start()
-    sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x))
+    sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x, 1))
     sserver.start()
+    sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
+    sserver2.start()
     # server(('', 50000))
-    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-        QtGui.QApplication.instance().exec_()
+    if real_time_plot:
+        if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+            QtGui.QApplication.instance().exec_()
