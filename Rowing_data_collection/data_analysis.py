@@ -11,9 +11,11 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
+# import shelve
+import pickle
 
 normal_plot = False
-dash_plot = True
+dash_plot = False
 
 class plot_chooser:
     def __init__(self):
@@ -46,7 +48,6 @@ class GetFiles(QWidget):
         if filename:
             self.filename = filename
 
-
 class IMU:
 
     def __init__(self, this_id):
@@ -70,7 +71,6 @@ class IMU:
             self.euler_x.append(euler[0])
             self.euler_y.append(euler[1])
             self.euler_z.append(euler[2])
-
 
 def separate_files(all_files):
     emg_files = [f for f in ex.filename[0] if 'EMG' in f]
@@ -211,8 +211,33 @@ if __name__ == '__main__':
     [buttons_timestamp, buttons_values] = parse_button_file(buttons_files[0])
     imus = parse_imus_file(imus_files[0])
     [emg_1_timestamp, emg_1_values] = parse_emg_file(emg_files[0])
-    # [emg_2_timestamp, emg_2_values] = parse_emg_file(emg_files[1])
+    [emg_2_timestamp, emg_2_values] = parse_emg_file(emg_files[1])
     # emg_2 = parse_emg_file(emg_files[1])
+
+    filename = 'rowing_data.out'
+    with open(filename, 'wb') as f:
+        pickle.dump(buttons_timestamp, f)
+        pickle.dump(buttons_values, f)
+        pickle.dump(imus, f)
+        pickle.dump(emg_1_timestamp, f)
+        pickle.dump(emg_1_values, f)
+        pickle.dump(emg_2_timestamp, f)
+        pickle.dump(emg_2_values, f)
+    # my_shelve = shelve.open(filename, 'n') # 'n' for new
+    # my_shelve['buttons_timestamp'] = globals()['buttons_timestamp']
+    # my_shelve['buttons_values'] = globals()['buttons_values']
+    # my_shelve['imus'] = globals()['imus']
+    # my_shelve['emg_1_timestamp'] = globals()['emg_1_timestamp']
+    # my_shelve['emg_1_values'] = globals()['emg_1_values']
+    # my_shelve['emg_2_timestamp'] = globals()['emg_2_timestamp']
+    # my_shelve['emg_2_values'] = globals()['emg_2_values']
+    # for key in dir():
+    #     try:
+    #         my_shelve[key] = globals()[key]
+    #     except TypeError:
+    #         print('Error shelving: {}'.format(key))
+    # my_shelve.close()
+
 
     if normal_plot:
 
