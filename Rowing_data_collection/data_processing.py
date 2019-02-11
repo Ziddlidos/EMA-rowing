@@ -3,11 +3,23 @@ from transformations import euler_from_quaternion
 from numpy import mean
 
 
-
-class GetFiles(QWidget):
+class GetFileToSave(QWidget):
 
     def __init__(self):
-        super(GetFiles, self).__init__()
+        super(GetFileToSave, self).__init__()
+        self.filename = []
+        self.openFileDialog()
+
+    def openFileDialog(self):
+        filename = QFileDialog.getSaveFileName(self)
+        if filename:
+            self.filename = filename
+
+
+class GetFilesToLoad(QWidget):
+
+    def __init__(self):
+        super(GetFilesToLoad, self).__init__()
         self.filename = []
         self.openFileDialog()
 
