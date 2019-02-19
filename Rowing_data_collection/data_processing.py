@@ -163,3 +163,37 @@ def get_starting_time(filenames):
 
 def run_dash(app_dash):
     app_dash.run_server(debug=True)
+
+def resample_series(x1, y1, x2, y2, crop=0):
+    from numpy import zeros
+    x = x1 + x2
+    x.sort()
+    y_1 = zeros(len(x))
+    y_2 = zeros(len(x))
+    j = 0
+    j_max = len(y1)
+    for i in range(len(x)):
+        if x[i] == x1[j]:
+            y_1[i] = y1[j]
+            j += 1
+            if j == j_max:
+                break
+        else: # TODO: improve interpolation method
+            if j > 0:
+                y_1[i] = y1[j-1]
+    j = 0
+    j_max = len(y2)
+    for i in range(len(x)):
+        if x[i] == x2[j]:
+            y_2[i] = y2[j]
+            j += 1
+            if j == j_max:
+                break
+        else: # TODO: improve interpolation method
+            if j > 0:
+                y_2[i] = y2[j-1]
+    if crop > 0:
+        x = x[crop:-crop]
+        y_1 = y_1[crop:-crop]
+        y_2 = y_2[crop:-crop]
+    return [x, y_1, y_2]

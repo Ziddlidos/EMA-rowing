@@ -44,6 +44,29 @@ def classify_by_buttons(buttons_timestamp, buttons_values, vector_timestamp, vec
                 break
     return [low, zero, up]
 
+def classify_by_buttons_in_order(buttons_timestamp, buttons_values, vector_timestamp):
+    from numpy import ones
+    last_position = len(buttons_timestamp)
+    position = 0
+    classification = [buttons_values[position]]
+    position += 1
+
+    for i in range(len(vector_timestamp)):
+        timestamp = vector_timestamp[i]
+        if timestamp < buttons_timestamp[position]:
+            classification.append(buttons_values[position-1])
+        else:
+            classification.append(buttons_values[position])
+            position += 1
+            if position == last_position:
+                break
+    total_size = len(vector_timestamp)
+    current_size = len(classification)
+    if current_size < total_size:
+        tail = ones(total_size - current_size) * classification[-1]
+        classification += list(tail)
+    return classification
+
 def separate_by_classification(vector_timestamp, vector_values, vector_classification):
     vector_low_timestamp = []
     vector_low_values = []
@@ -69,3 +92,4 @@ def separate_by_classification(vector_timestamp, vector_values, vector_classific
             vector_zero_values,
             vector_up_timestamp,
             vector_up_values]
+
