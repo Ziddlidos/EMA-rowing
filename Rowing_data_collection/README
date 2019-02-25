@@ -1,0 +1,29 @@
+# Rowing data collection
+
+1 - Run main_data.py
+
+2 - Run MainStim.py to control the handle bar
+The handle bar and the stimulator must be connected to the computer.
+The Rehastim stimulator must be on and set to Science Mode.
+
+3 - Run imu_data.py to get imu data.
+The IMU dongle mus tbe connected to the computer.
+At least one IMU must be on and its address on the dongle address table.
+
+4 - Start the EMG system on MATLAB
+
+5 - Start rowing
+
+6 - When done, stop everything in reverse order.
+
+7 - Run data_analysis.py
+
+8 - Run data_plot.py
+An input file must be provided, either hard coded or with a ui.
+Results will be in a log file, such as "results.txt"
+
+9 - If desired, run technique_analysis.py
+
+Most scripts have editable parameters that may have to be changed to each occasion.
+
+Caution: the EMG file can get quite large in long sessions ( > 5 min )

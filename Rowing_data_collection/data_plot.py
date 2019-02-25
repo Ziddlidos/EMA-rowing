@@ -1,3 +1,17 @@
+'''
+This script was made for the rowing data collection work.
+Its purpose is to
+- load binary data from a file
+- classify IMU data according to button data
+- Train an LDA system to classify IMU data
+- Evaluate performance
+It writes the results in a log file
+Several parameters are editable throughout the script
+Author: Lucas Fonseca
+Contact: lucasafonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 import matplotlib.pyplot as plt
 import pickle
 import dash
@@ -84,6 +98,7 @@ def find_transitions(timestamp, values):
             transitions_values.append(values[i])
     return transitions_times, transitions_values
 
+# This method calculates how many predicted transitions were correct within a tolerance to real transitions
 def calculate_performance(real_time, real_value, predicted_time, predicted_value, tolerance):
     original_real_time = real_time.copy()
     original_real_value = real_value.copy()
@@ -318,6 +333,9 @@ for trial in range(len(training_lower_time_table)):
         # plt.title('Time frame: {}s-{}s. Tolerance: {}s.'.format(training_lower_time, testing_upper_time, tolerance))
         # plt.savefig('{}s-{}s_tolerance_{}.svg'.format(training_lower_time, testing_upper_time, tolerance))
         # plt.show()
+
+        # Here performance point-by-point is calculated, where the classifier is evaluated at every instant,
+        # and not only on transitions
         performance = 0
         total = 0
         for i in range(1, len(t)):

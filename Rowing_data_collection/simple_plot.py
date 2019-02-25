@@ -1,3 +1,12 @@
+'''
+This script was made for the rowing data collection work.
+It is similar to data_plot.py, but it runs on only one data set, so it is faster.
+Its purpose is to quickly see graphical results.
+Author: Lucas Fonseca
+Contact: lucasafonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 import matplotlib.pyplot as plt
 import pickle
 import dash
@@ -23,7 +32,7 @@ from matplotlib.pyplot import Line2D
 filename = 'Estevao_rowing.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
-logging.basicConfig(filename='results.txt', level=logging.DEBUG)
+# logging.basicConfig(filename='results.txt', level=logging.DEBUG)
 
 data = {}
 
@@ -56,10 +65,10 @@ for i in range(1,len(imus[0].timestamp)):
 for i in range(1,len(imus[2].timestamp)):
     t2.append(imus[2].timestamp[i]-imus[2].timestamp[i-1])
 
-plt.figure()
-plt.plot(imus[0].timestamp[1:], 1/np.asarray(t0))
-plt.plot(imus[2].timestamp[1:], 1/np.asarray(t2))
-plt.show()
+# plt.figure()
+# plt.plot(imus[0].timestamp[1:], 1/np.asarray(t0))
+# plt.plot(imus[2].timestamp[1:], 1/np.asarray(t2))
+# plt.show()
 
 print('IMU 0 sample rate: {}'.format(len(imus[0].timestamp)/(imus[0].timestamp[-1] - imus[0].timestamp[0])))
 print('IMU 2 sample rate: {}'.format(len(imus[2].timestamp)/(imus[2].timestamp[-1] - imus[2].timestamp[0])))
@@ -79,6 +88,21 @@ print('Resampling and synchronizing...')
                                                                             imus[0].euler_y)
 
 [low, zero, up] = classify_by_buttons(buttons_timestamp, buttons_values, imus[2].timestamp, imus[2].euler_z)
+
+total_time_in_low = 0
+total_time_in_zero = 0
+total_time_in_up = 0
+
+for packet in low:
+    total_time_in_low += (packet.timestamp[-1] - packet.timestamp[0])
+for packet in zero:
+    total_time_in_zero += (packet.timestamp[-1] - packet.timestamp[0])
+for packet in up:
+    total_time_in_up += (packet.timestamp[-1] - packet.timestamp[0])
+
+print('Total time in flexion: {}s'.format(total_time_in_low))
+print('Total time in stop: {}s'.format(total_time_in_zero))
+print('Total time in extension: {}s'.format(total_time_in_up))
 
 classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values, t)
 

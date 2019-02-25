@@ -1,10 +1,19 @@
+'''
+This scripts open socket connections to receive data from other programs and save them with a unified timestamp.
+It is useful for syncing data from different sources.
+Right now it is set to open:
+- python processing socket connection to receive data from other python scripts, particularly IMU data
+- 2 regular TCPIP socket connections to receive data from non python programs, particularly EMG data from MATLAB.
+Author: Lucas Fonseca
+Contact: lucasafonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 # this is the server
 import time
 from multiprocessing.connection import Listener
 import socket
 import multiprocessing
-# import threading
-# import signal
 import sys
 import datetime
 import struct
@@ -16,6 +25,7 @@ from pyqtgraph.Qt import QtGui, QtCore
 
 real_time_plot = False
 
+# x and y are used to graph results in real time
 size_of_graph = 10000
 x = multiprocessing.Array('d', size_of_graph)
 y = multiprocessing.Array('d', size_of_graph)
@@ -27,7 +37,6 @@ for i in range(size_of_graph):
 
 if real_time_plot:
     app = QtGui.QApplication([])
-    # app.aboutToQuit.connect(on_exit)
     win = pg.GraphicsWindow(title="Basic plotting examples")
     win.resize(1000,600)
     win.setWindowTitle('pyqtgraph example: Plotting')
@@ -154,7 +163,6 @@ def do_stuff_socket(client, source, x, channel):
         [f.write(str(i)[1:-1].replace('[','').replace(']','')+'\r\n') for i in server_data]
         f.close()
 
-
 def server(address, port):
     serv = Listener((address, port))
     # s = socket.socket()
@@ -171,7 +179,6 @@ def server(address, port):
         p.start()
 
         # signal.pause()
-
 
 def socket_server(address, port, x, channel):
     s = socket.socket()

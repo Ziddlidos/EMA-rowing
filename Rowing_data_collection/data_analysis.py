@@ -1,3 +1,11 @@
+'''
+This script loads rowing data that was saved to a file and saves it to a new file in binary form.
+This makes it much faster to load and further process later.
+Author: Lucas Fonseca
+Contact: lucasfonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 from data_processing import *
 from PyQt5.QtWidgets import QApplication
 import pickle

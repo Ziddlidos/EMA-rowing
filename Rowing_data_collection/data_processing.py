@@ -1,3 +1,11 @@
+'''
+This file is a collection of useful functions for dealing with rowing data, including open and saving files, IMU data,
+EMG data and data syncing.
+Author: Lucas Fonseca
+Contact: lucasafonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 from PyQt5.QtWidgets import QWidget, QFileDialog
 from transformations import euler_from_quaternion
 from numpy import mean
@@ -52,6 +60,7 @@ class IMU:
             self.euler_y.append(euler[1])
             self.euler_z.append(euler[2])
 
+# Find files with EMG, IMU and button data
 def separate_files(filenames):
     emg_files = [f for f in filenames if 'EMG' in f]
     imus_files = [f for f in filenames if 'imus' in f]
@@ -102,6 +111,29 @@ def parse_emg_file(filename, starting_time):
 
     return [timestamp, emg_data]
 
+def parse_imus_file(filename, starting_time):
+    lines = []
+    imus = []
+    imus_ids = []
+    with open(filename) as inputfile:
+        for line in inputfile:
+            lines.append(line.split(','))
+    # first_time = float(lines[0][0])
+    for data in lines:
+        id = float(data[2])
+        if id not in imus_ids:
+            imus_ids.append(id)
+            imus.append(IMU(id))
+        imus[imus_ids.index(id)].timestamp.append(float(data[0]) - starting_time)
+        imus[imus_ids.index(id)].x_values.append(float(data[3]))
+        imus[imus_ids.index(id)].y_values.append(float(data[4]))
+        imus[imus_ids.index(id)].z_values.append(float(data[5]))
+        imus[imus_ids.index(id)].w_values.append(float(data[6]))
+
+    [imus[i].get_euler_angles() for i in range(len(imus))]
+
+    return imus
+
 def filter_emg(emg_data):
     values_to_pop = []
     j = len(emg_data)
@@ -127,29 +159,6 @@ def get_button_value(button_state):
     elif button_state.find('flexion') != -1:
         return -1
 
-def parse_imus_file(filename, starting_time):
-    lines = []
-    imus = []
-    imus_ids = []
-    with open(filename) as inputfile:
-        for line in inputfile:
-            lines.append(line.split(','))
-    # first_time = float(lines[0][0])
-    for data in lines:
-        id = float(data[2])
-        if id not in imus_ids:
-            imus_ids.append(id)
-            imus.append(IMU(id))
-        imus[imus_ids.index(id)].timestamp.append(float(data[0]) - starting_time)
-        imus[imus_ids.index(id)].x_values.append(float(data[3]))
-        imus[imus_ids.index(id)].y_values.append(float(data[4]))
-        imus[imus_ids.index(id)].z_values.append(float(data[5]))
-        imus[imus_ids.index(id)].w_values.append(float(data[6]))
-
-    [imus[i].get_euler_angles() for i in range(len(imus))]
-
-    return imus
-
 def get_starting_time(filenames):
     times = []
     for filename in filenames:
@@ -164,6 +173,7 @@ def get_starting_time(filenames):
 def run_dash(app_dash):
     app_dash.run_server(debug=True)
 
+# Method for syncing data from sources with different sample rates, or inconsistent ones.
 def resample_series(x1, y1, x2, y2, crop=0):
     from numpy import zeros
     x = x1 + x2

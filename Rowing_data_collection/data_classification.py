@@ -1,3 +1,10 @@
+'''
+This file contains a collection of methods ans a class to help classifying rowing data.
+Author: Lucas Fonseca
+Contact: lucasafonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 class Cdata:
     def __init__(self, classification):
         self.classification = classification
@@ -5,6 +12,9 @@ class Cdata:
         self.values = []
 
 
+# Classify data according to which button was beeing pressed at that instant
+# Returns 3 lists of Cdatas. One for each classification
+# TODO: make this return any number of classes
 def classify_by_buttons(buttons_timestamp, buttons_values, vector_timestamp, vector_values):
     last_position = len(buttons_timestamp) - 1
     position = 0
@@ -44,6 +54,8 @@ def classify_by_buttons(buttons_timestamp, buttons_values, vector_timestamp, vec
                 break
     return [low, zero, up]
 
+# Classify data according to which button was beeing pressed at that instant
+# Returns a single list with the classification. This list is the same size as the input
 def classify_by_buttons_in_order(buttons_timestamp, buttons_values, vector_timestamp):
     from numpy import ones
     last_position = len(buttons_timestamp)
@@ -67,6 +79,7 @@ def classify_by_buttons_in_order(buttons_timestamp, buttons_values, vector_times
         classification += list(tail)
     return classification
 
+# Separate any data into 3 different lists according to pre calculated classification
 def separate_by_classification(vector_timestamp, vector_values, vector_classification):
     vector_low_timestamp = []
     vector_low_values = []

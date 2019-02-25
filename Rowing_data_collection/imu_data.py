@@ -1,3 +1,10 @@
+'''
+This script is used to comunicate with the IMUs.
+If connection == True, it sends data to the server for logging.
+Authors: Lucas Fonseca
+Contact: lucasfonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
 # this is a client for the IMUs
 
 import time

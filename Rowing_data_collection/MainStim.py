@@ -1,3 +1,11 @@
+'''
+This script is used to communicate with the rowing handle bar.
+If connection == True, it sends the button pressing data to the server for logging.
+Authors: Breno Ferreira and Lucas Fonseca
+Contact: lucasfonseca@lara.unb.br
+Date: Feb 25th 2019
+'''
+
 import stimulator
 import serial
 import time
