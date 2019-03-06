@@ -1,0 +1,16 @@
+<launch>
+  <group ns="ema">
+    <!-- load config files-->
+    <rosparam command="load" file="$(find ema_fes_rowing)/config/default.yaml" ns="rowing" />
+    
+    <!-- launch nodes -->
+    <node name="main" pkg="ema_fes_rowing" type="main_node.py" output="screen" respawn="true"  cwd="node" respawn_delay="5"/>
+    <node name="imu" pkg="ema_fes_rowing" type="imu_node.py" output="screen" respawn="true" respawn_delay="5"/>
+    <node name="stimulator" pkg="ema_fes_rowing" type="stim_node.py" output="screen" respawn="true" respawn_delay="5"/>
+  </group>
+
+  <!-- launch utils -->
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find yostlabs_3space_imu)/config/rviz/imu.rviz" output="log" respawn="true" respawn_delay="5"/>
+  <node name="rqt_graph" pkg="rqt_graph" type="rqt_graph" output="log" respawn="true" respawn_delay="5"/>
+  <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" output="log" respawn="true" respawn_delay="5"/> -->
+</launch>

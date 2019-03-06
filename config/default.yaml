@@ -1,0 +1,6 @@
+# CONFIG FILE
+#
+#
+
+server: 'localhost'
+ports: {'mainport': 50001, 'auxport1': 50002, 'auxport2': 50003}
