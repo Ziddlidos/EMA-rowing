@@ -38,6 +38,7 @@ a = serial.tools.list_ports.comports()
 for w in a:
     print("\tPort:", w.device, "\tSerial#:", w.serial_number, "\tDesc:", w.description)
     if w.description == 'USB2.0-Serial':
+    #if w.pid == 'F8:95:C7:8D:18:03':
         bd_addr = w.device
     elif w.description == 'USB <-> Stimu_Control':
         stimulatorPort = w.device
@@ -45,7 +46,7 @@ for w in a:
 # bd_addr = '/dev/cu.usbserial-1410'
 # stimulatorPort = 'stimPort'
 sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
-time.sleep(5)
+time.sleep(30)
 current_str = [0,0,0,0,0,0,0,0]
 running = True
 
