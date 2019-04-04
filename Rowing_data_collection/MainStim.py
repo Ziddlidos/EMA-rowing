@@ -9,7 +9,7 @@ Date: Feb 25th 2019
 import stimulator
 import serial
 import time
-# import bluetooth
+import bluetooth
 import serial.tools.list_ports
 import io
 from multiprocessing.connection import Client
@@ -18,7 +18,7 @@ import threading
 
 #TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 
 connection = False
 try:
@@ -45,8 +45,19 @@ for w in a:
 
 # bd_addr = '/dev/cu.usbserial-1410'
 # stimulatorPort = 'stimPort'
-sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
-time.sleep(30)
+#sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
+
+hostMACAddress = '28:3A:4D:93:15:0E' # The MAC address of a Bluetooth adapter on the server. The server might have multiple Bluetooth adapters.
+port = 1
+backlog = 1
+size = 1024
+sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+sock.bind((hostMACAddress, port))
+sock.listen(backlog)
+time.sleep(1)
+client, clientInfo = sock.accept()
+
+time.sleep(5)
 current_str = [0,0,0,0,0,0,0,0]
 running = True
 
@@ -56,26 +67,28 @@ print("Conectando")
 statSend = True
 statWait = True
 
-sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
+client.send("a")  # envia 'a' sinalizando a conexao para o controlador
 # while statSend == True:
 # time.sleep(1)
 # TODO make handshake
 '''
 temp= sock.readline()
 Temp = temp.decode()
-Temp = temp[0:8]
-if temp == 'conectou':
+Temp = temp[0:11]
+if temp == 'btConectado':
     statWait = False
     statSend = False     
 '''
+
 print("Conectado")
 
 parametros = 'No parameters'
 # statWait = True
 while statWait:
-    p = sock.readline()
-    parametros = p[0:28]
-    if len(parametros) > 1:
+    p = client.recv(size)
+    parametros = p.decode()
+    parametros = parametros[0:28]
+    if len(parametros) > 20:
         statWait = False
 
 if stimulation:
@@ -160,7 +173,7 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
         current_str.append(current_CH34)
         current_str.append(current_CH34)
     '''
-    sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
+    #sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
     # print("running")
 
     state = 0
@@ -168,9 +181,9 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
     stim_state = 'stop'
     pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
     while state != 3:
-        while sock.inWaiting() == 0:
-            pass
-        state = int(sock.read(1))  # state = int(sock.read(1))
+        #while sock.inWaiting() == 0:
+         #   pass
+        state = int(client.recv(size))  # state = int(sock.read(1))
         # print(state)
         if mode == 1:  # Extensão B00000011 
             if state == 0:
