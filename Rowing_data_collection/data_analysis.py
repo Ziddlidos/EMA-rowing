@@ -18,12 +18,12 @@ if __name__ == '__main__':
 
     [emg_files, imus_files, buttons_files] = separate_files(source_files.filename[0])
 
-    starting_time = get_starting_time([buttons_files[0], imus_files[0], emg_files[0]])
+    starting_time = get_starting_time([buttons_files[0], imus_files[0]])
 
     [buttons_timestamp, buttons_values] = parse_button_file(buttons_files[0], starting_time)
     imus = parse_imus_file(imus_files[0], starting_time)
-    [emg_1_timestamp, emg_1_values] = parse_emg_file(emg_files[0], starting_time)
-    [emg_2_timestamp, emg_2_values] = parse_emg_file(emg_files[1], starting_time)
+    # [emg_1_timestamp, emg_1_values] = parse_emg_file(emg_files[0], starting_time)
+    # [emg_2_timestamp, emg_2_values] = parse_emg_file(emg_files[1], starting_time)
 
     target_file = GetFileToSave()
 
@@ -35,10 +35,10 @@ if __name__ == '__main__':
         pickle.dump('imus', f)
         pickle.dump(imus, f)
         pickle.dump('emg_1_timestamp', f)
-        pickle.dump(emg_1_timestamp, f)
-        pickle.dump('emg_1_values', f)
-        pickle.dump(emg_1_values, f)
-        pickle.dump('emg_2_timestamp', f)
-        pickle.dump(emg_2_timestamp, f)
-        pickle.dump('emg_2_values', f)
-        pickle.dump(emg_2_values, f)
+        # pickle.dump(emg_1_timestamp, f)
+        # pickle.dump('emg_1_values', f)
+        # pickle.dump(emg_1_values, f)
+        # pickle.dump('emg_2_timestamp', f)
+        # pickle.dump(emg_2_timestamp, f)
+        # pickle.dump('emg_2_values', f)
+        # pickle.dump(emg_2_values, f)

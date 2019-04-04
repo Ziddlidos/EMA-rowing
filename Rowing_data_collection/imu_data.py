@@ -63,6 +63,8 @@ for i in range(len(addresses)):
 
 print('Start')
 
+
+
 def read_sensors(portIMU):
     global x,y,z, running, counters
     t0 = time.time()

@@ -31,6 +31,10 @@ from matplotlib.pyplot import Line2D
 # filename = source_file.filename[0][0]
 filename = 'Estevao_rowing.out'
 
+normal_plot = True
+dash_plot = False
+output = False
+
 plt.rcParams['svg.fonttype'] = 'none'
 # logging.basicConfig(filename='results.txt', level=logging.DEBUG)
 
@@ -114,8 +118,7 @@ dy0 = np.append([0], np.diff(imus[0].resampled_euler_y)/np.diff(t))
 dy2 = np.append([0], np.diff(imus[2].resampled_euler_y)/np.diff(t))
 
 
-normal_plot = True
-dash_plot = False
+
 
 
 print('\n\n\n')
@@ -124,10 +127,10 @@ print('Learning...')
 number_of_points = 10
 filter_size = 11
 
-training_lower_time = 400
-training_upper_time = 475
+training_lower_time = 600
+training_upper_time = 675
 testing_lower_time = training_upper_time
-testing_upper_time = 500
+testing_upper_time = 700
 
 X = []
 y = []
@@ -237,18 +240,25 @@ if normal_plot:
     # plt.plot(imus[2].timestamp, imus[2].euler_y, 'b', label= 'IMU 2 y')
     # plt.plot(imus[2].timestamp, imus[2].euler_z, 'b', label='IMU 2 z')
     # plt.plot(t, imus[2].resampled_euler_z, 'b', label='IMU 2 z')
-    packet_values = []
-    for packet in zero:
-        packet_values += [values for values in packet.values]
-    mean_factor = np.mean(packet_values)
-    [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
-              'b.', label='Flexion') for packet in low]
-    [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
-              'g.', label='Stop') for packet in zero]
-    [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
-              'r.', label='Extension') for packet in up]
-    # plt.step(t[number_of_points:], predicted_values, 'c:')
-    # plt.plot(t, classification0, 'c')
+
+    if output:
+        plt.step(t[number_of_points:], predicted_values, 'c:', label='Predicted')
+
+    else:
+        packet_values = []
+        for packet in zero:
+            packet_values += [values for values in packet.values]
+        mean_factor = np.mean(packet_values)
+        [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
+                  'b.', label='Flexion') for packet in low]
+        [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
+                  'g.', label='Stop') for packet in zero]
+        [plt.plot(packet.timestamp, np.asarray(packet.values) - mean_factor,
+                  'r.', label='Extension') for packet in up]
+
+
+
+    # plt.plot(t, classification0, 'c', label='Real')
     # plt.plot(imus[0].timestamp, imus[0].euler_x, 'r-')
     # plt.plot(imus[0].timestamp, imus[0].euler_y, 'r:')
     # plt.plot(imus[0].timestamp, imus[0].euler_z, 'r--')
@@ -261,17 +271,21 @@ if normal_plot:
     # plt.title(filename)
     plt.xlabel('Time [s]')
     plt.ylabel('Angle [rad] / Class')
-    plt.ylim((-1.2, 1.2))
-    plt.xlim((565, 585))
-    # plt.legend()
-    legend_elements = [
-        Line2D([0], [0], color='k', label = 'Stimulation'),
-        Line2D([0], [0], color='b', label = 'Flexion', marker='o'),
-        Line2D([0], [0], color='g', label='Stop', marker='o'),
-        Line2D([0], [0], color='r', label='Extension', marker='o'),
-        # Line2D([0], [0], color='c', label='Prediction', marker='o'),
-        ]
-    plt.legend(handles=legend_elements)
+
+    if output:
+        plt.legend()
+    else:
+        plt.ylim((-1.2, 1.2))
+        plt.xlim((565, 585))
+        legend_elements = [
+            Line2D([0], [0], color='k', label = 'Stimulation'),
+            Line2D([0], [0], color='b', label = 'Flexion', marker='o'),
+            Line2D([0], [0], color='g', label='Stop', marker='o'),
+            Line2D([0], [0], color='r', label='Extension', marker='o'),
+            # Line2D([0], [0], color='c', label='Prediction', marker='o'),
+            ]
+        plt.legend(handles=legend_elements)
+
     plt.savefig('graph.svg')
     plt.show()
 

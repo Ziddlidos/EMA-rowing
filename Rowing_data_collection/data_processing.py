@@ -64,7 +64,7 @@ class IMU:
 def separate_files(filenames):
     emg_files = [f for f in filenames if 'EMG' in f]
     imus_files = [f for f in filenames if 'imus' in f]
-    buttons_files = [f for f in filenames if 'buttons' in f]
+    buttons_files = [f for f in filenames if 'stim' in f]
     return [emg_files, imus_files, buttons_files]
 
 def parse_button_file(filename, starting_time):

@@ -205,10 +205,10 @@ if __name__ == '__main__':
     mserver = multiprocessing.Process(target=server, args=('', 50001))
     # mserver = threading.Thread(target=server, args=(('', 50001),))
     mserver.start()
-    sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x, 1))
-    sserver.start()
-    sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
-    sserver2.start()
+    # sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x, 1))
+    # sserver.start()
+    # sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
+    # sserver2.start()
     # server(('', 50000))
     if real_time_plot:
         if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):

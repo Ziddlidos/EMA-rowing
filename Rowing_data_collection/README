@@ -7,7 +7,7 @@ The handle bar and the stimulator must be connected to the computer.
 The Rehastim stimulator must be on and set to Science Mode.
 
 3 - Run imu_data.py to get imu data.
-The IMU dongle mus tbe connected to the computer.
+The IMU dongle must tbe connected to the computer.
 At least one IMU must be on and its address on the dongle address table.
 
 4 - Start the EMG system on MATLAB

@@ -27,17 +27,35 @@ import numpy as np
 from scipy.signal import medfilt
 import logging
 
-sys.stdout = open('results.txt', 'w')
+
+normal_plot = True
+dash_plot = False
+
+number_of_points = 10
+filter_size = 11
+
+imu_forearm_id = 5
+imu_arm_id = 4
+
+imu_0 = 0
+# imu_1 = 2
+imu_1 = 1
+
+total_time = 30
+
+# sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
 # app = QApplication(sys.argv)
 # source_file = GetFilesToLoad()
 # app.processEvents()
 # filename = source_file.filename[0][0]
-filename = 'Estevao_rowing.out'
+
+# filename = 'Data/Estevao_rowing.out'
+filename = 'lucas_test'
 
 plt.rcParams['svg.fonttype'] = 'none'
-logging.basicConfig(filename='results.txt', level=logging.DEBUG)
+logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
 
 data = {}
 
@@ -60,33 +78,60 @@ print('Variables loaded: ', var_names)
 # Assign variables
 [buttons_timestamp, buttons_values] = [data['buttons_timestamp'], data['buttons_values']]
 imus = data['imus']
-[emg_1_timestamp, emg_1_values] = [data['emg_1_timestamp'], data['emg_1_values']]
-[emg_2_timestamp, emg_2_values] = [data['emg_2_timestamp'], data['emg_2_values']]
+# [emg_1_timestamp, emg_1_values] = [data['emg_1_timestamp'], data['emg_1_values']]
+# [emg_2_timestamp, emg_2_values] = [data['emg_2_timestamp'], data['emg_2_values']]
 
 print('Resampling and synchronizing...')
-[t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
-                                                                            imus[2].euler_z,
-                                                                            imus[0].timestamp,
-                                                                            imus[0].euler_z)
-[t, imus[2].resampled_euler_x, imus[0].resampled_euler_x] = resample_series(imus[2].timestamp,
-                                                                            imus[2].euler_x,
-                                                                            imus[0].timestamp,
-                                                                            imus[0].euler_x)
-[t, imus[2].resampled_euler_y, imus[0].resampled_euler_y] = resample_series(imus[2].timestamp,
-                                                                            imus[2].euler_y,
-                                                                            imus[0].timestamp,
-                                                                            imus[0].euler_y)
+[t, imus[imu_0].resampled_x, imus[imu_1].resampled_x] = resample_series(imus[imu_0].timestamp,
+                                                                        imus[imu_0].x_values,
+                                                                        imus[imu_1].timestamp,
+                                                                        imus[imu_1].x_values)
+[t, imus[imu_0].resampled_y, imus[imu_1].resampled_y] = resample_series(imus[imu_0].timestamp,
+                                                                        imus[imu_0].y_values,
+                                                                        imus[imu_1].timestamp,
+                                                                        imus[imu_1].y_values)
+[t, imus[imu_0].resampled_z, imus[imu_1].resampled_z] = resample_series(imus[imu_0].timestamp,
+                                                                        imus[imu_0].z_values,
+                                                                        imus[imu_1].timestamp,
+                                                                        imus[imu_1].z_values)
+[t, imus[imu_0].resampled_w, imus[imu_1].resampled_w] = resample_series(imus[imu_0].timestamp,
+                                                                        imus[imu_0].w_values,
+                                                                        imus[imu_1].timestamp,
+                                                                        imus[imu_1].w_values)
 
-[low, zero, up] = classify_by_buttons(buttons_timestamp, buttons_values, imus[2].timestamp, imus[2].euler_z)
+
+# [t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
+#                                                                             imus[2].euler_z,
+#                                                                             imus[0].timestamp,
+#                                                                             imus[0].euler_z)
+# [t, imus[2].resampled_euler_x, imus[0].resampled_euler_x] = resample_series(imus[2].timestamp,
+#                                                                             imus[2].euler_x,
+#                                                                             imus[0].timestamp,
+#                                                                             imus[0].euler_x)
+# [t, imus[2].resampled_euler_y, imus[0].resampled_euler_y] = resample_series(imus[2].timestamp,
+#                                                                             imus[2].euler_y,
+#                                                                             imus[0].timestamp,
+#                                                                             imus[0].euler_y)
+
+# [low, zero, up] = classify_by_buttons(buttons_timestamp, buttons_values, imus[2].timestamp, imus[2].euler_z)
 
 classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values, t)
 
-dz0 = np.append([0], np.diff(imus[0].resampled_euler_z)/np.diff(t))
-dz2 = np.append([0], np.diff(imus[2].resampled_euler_z)/np.diff(t))
-dx0 = np.append([0], np.diff(imus[0].resampled_euler_x)/np.diff(t))
-dx2 = np.append([0], np.diff(imus[2].resampled_euler_x)/np.diff(t))
-dy0 = np.append([0], np.diff(imus[0].resampled_euler_y)/np.diff(t))
-dy2 = np.append([0], np.diff(imus[2].resampled_euler_y)/np.diff(t))
+dqx0 = np.append([0], np.diff(imus[imu_0].resampled_x)/np.diff(t))
+dqx2 = np.append([0], np.diff(imus[imu_1].resampled_x)/np.diff(t))
+dqy0 = np.append([0], np.diff(imus[imu_0].resampled_y)/np.diff(t))
+dqy2 = np.append([0], np.diff(imus[imu_1].resampled_y)/np.diff(t))
+dqz0 = np.append([0], np.diff(imus[imu_0].resampled_z)/np.diff(t))
+dqz2 = np.append([0], np.diff(imus[imu_1].resampled_z)/np.diff(t))
+dqw0 = np.append([0], np.diff(imus[imu_0].resampled_w)/np.diff(t))
+dqw2 = np.append([0], np.diff(imus[imu_1].resampled_w)/np.diff(t))
+
+# dz0 = np.append([0], np.diff(imus[0].resampled_euler_z)/np.diff(t))
+# dz2 = np.append([0], np.diff(imus[2].resampled_euler_z)/np.diff(t))
+# dx0 = np.append([0], np.diff(imus[0].resampled_euler_x)/np.diff(t))
+# dx2 = np.append([0], np.diff(imus[2].resampled_euler_x)/np.diff(t))
+# dy0 = np.append([0], np.diff(imus[0].resampled_euler_y)/np.diff(t))
+# dy2 = np.append([0], np.diff(imus[2].resampled_euler_y)/np.diff(t))
 
 
 def find_transitions(timestamp, values):
@@ -213,17 +258,18 @@ def calculate_performance(real_time, real_value, predicted_time, predicted_value
     return performance, error_history, false_transitions, predicted_time, predicted_value
 
 
-normal_plot = False
-dash_plot = False
+def save_to_file(data):
+    with open('Data/classifier', 'wb') as f:
+        for piece_of_data in data:
+            pickle.dump(piece_of_data, f)
 
-number_of_points = 10
-filter_size = 11
 
-training_lower_time_table = [200, 300, 400, 500, 600]
-training_upper_time_table = [275, 375, 475, 575, 675]
+
+training_lower_time_table = [0] # [200, 300, 400, 500, 600]
+training_upper_time_table = [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_upper_time_table
-testing_upper_time_table = [300, 400, 500, 600, 700]
-tolerance_table = [0.1, 0.2, 0.3, 0.4, 0.5]
+testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
+tolerance_table = [0.3] # [0.1, 0.2, 0.3, 0.4, 0.5]
 # training_lower_time_table = [500, 600]
 # training_upper_time_table = [575, 675]
 # testing_lower_time_table = training_upper_time_table
@@ -248,61 +294,147 @@ for trial in range(len(training_lower_time_table)):
                                                                                       tolerance))
         print('Learning...')
 
+        # Building learning data
         for i in range(number_of_points, len(t)):
             if training_lower_time < t[i] < training_upper_time:
                 this = []
-                this += [j for j in imus[0].resampled_euler_z[i - number_of_points:i]]
-                this += [j for j in imus[2].resampled_euler_z[i - number_of_points:i]]
-                this += [j for j in imus[0].resampled_euler_x[i - number_of_points:i]]
-                this += [j for j in imus[2].resampled_euler_x[i - number_of_points:i]]
-                this += [j for j in imus[0].resampled_euler_y[i - number_of_points:i]]
-                this += [j for j in imus[2].resampled_euler_y[i - number_of_points:i]]
-                this += [dz0[i]]
-                this += [dz2[i]]
-                this += [dx0[i]]
-                this += [dx2[i]]
-                this += [dy0[i]]
-                this += [dy2[i]]
+                # adding number_of_points points
+                # quaternions
+                this += [j for j in imus[imu_0].resampled_x[i - number_of_points:i]]
+                this += [j for j in imus[imu_1].resampled_x[i - number_of_points:i]]
+                this += [j for j in imus[imu_0].resampled_y[i - number_of_points:i]]
+                this += [j for j in imus[imu_1].resampled_y[i - number_of_points:i]]
+                this += [j for j in imus[imu_0].resampled_z[i - number_of_points:i]]
+                this += [j for j in imus[imu_1].resampled_z[i - number_of_points:i]]
+                this += [j for j in imus[imu_0].resampled_w[i - number_of_points:i]]
+                this += [j for j in imus[imu_1].resampled_w[i - number_of_points:i]]
+                # Euler
+                # this += [j for j in imus[0].resampled_euler_z[i - number_of_points:i]]
+                # this += [j for j in imus[2].resampled_euler_z[i - number_of_points:i]]
+                # this += [j for j in imus[0].resampled_euler_x[i - number_of_points:i]]
+                # this += [j for j in imus[2].resampled_euler_x[i - number_of_points:i]]
+                # this += [j for j in imus[0].resampled_euler_y[i - number_of_points:i]]
+                # this += [j for j in imus[2].resampled_euler_y[i - number_of_points:i]]
+
+                # adding number_of_points diff points
+                # quaternions
+                this += list(dqx0[i - number_of_points:i])
+                this += list(dqx2[i - number_of_points:i])
+                this += list(dqy0[i - number_of_points:i])
+                this += list(dqy2[i - number_of_points:i])
+                this += list(dqz0[i - number_of_points:i])
+                this += list(dqz2[i - number_of_points:i])
+                this += list(dqw0[i - number_of_points:i])
+                this += list(dqw2[i - number_of_points:i])
+                # Euler
+                # this += [dz0[i]]
+                # this += [dz2[i]]
+                # this += [dx0[i]]
+                # this += [dx2[i]]
+                # this += [dy0[i]]
+                # this += [dy2[i]]
+
                 X.append(this)
 
                 y.append(classification0[i])
 
 
 
-        out_z_0 = [np.array(imus[0].resampled_euler_z[:-number_of_points])]
-        out_z_2 = [np.array(imus[2].resampled_euler_z[:-number_of_points])]
-        out_x_0 = [np.array(imus[0].resampled_euler_x[:-number_of_points])]
-        out_x_2 = [np.array(imus[2].resampled_euler_x[:-number_of_points])]
-        out_y_0 = [np.array(imus[0].resampled_euler_y[:-number_of_points])]
-        out_y_2 = [np.array(imus[2].resampled_euler_y[:-number_of_points])]
+        # Building evaluating data
+        out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
+        out_qx_2 = [np.array(imus[imu_1].resampled_x[:-number_of_points])]
+        out_qy_0 = [np.array(imus[imu_0].resampled_y[:-number_of_points])]
+        out_qy_2 = [np.array(imus[imu_1].resampled_y[:-number_of_points])]
+        out_qz_0 = [np.array(imus[imu_0].resampled_z[:-number_of_points])]
+        out_qz_2 = [np.array(imus[imu_1].resampled_z[:-number_of_points])]
+        out_qw_0 = [np.array(imus[imu_0].resampled_w[:-number_of_points])]
+        out_qw_2 = [np.array(imus[imu_1].resampled_w[:-number_of_points])]
+
+        out_dqx0 = [np.array(dqx0[:-number_of_points])]
+        out_dqx2 = [np.array(dqx2[:-number_of_points])]
+        out_dqy0 = [np.array(dqy0[:-number_of_points])]
+        out_dqy2 = [np.array(dqy2[:-number_of_points])]
+        out_dqz0 = [np.array(dqz0[:-number_of_points])]
+        out_dqz2 = [np.array(dqz2[:-number_of_points])]
+        out_dqw0 = [np.array(dqw0[:-number_of_points])]
+        out_dqw2 = [np.array(dqw2[:-number_of_points])]
+
+
+        # out_z_0 = [np.array(imus[0].resampled_euler_z[:-number_of_points])]
+        # out_z_2 = [np.array(imus[2].resampled_euler_z[:-number_of_points])]
+        # out_x_0 = [np.array(imus[0].resampled_euler_x[:-number_of_points])]
+        # out_x_2 = [np.array(imus[2].resampled_euler_x[:-number_of_points])]
+        # out_y_0 = [np.array(imus[0].resampled_euler_y[:-number_of_points])]
+        # out_y_2 = [np.array(imus[2].resampled_euler_y[:-number_of_points])]
         if number_of_points > 1:
             for i in range(1, number_of_points):
-                out_z_0 = np.append(out_z_0, [np.array(imus[0].resampled_euler_z[i:-number_of_points + i])], 0)
-                out_z_2 = np.append(out_z_2, [np.array(imus[2].resampled_euler_z[i:-number_of_points + i])], 0)
-                out_x_0 = np.append(out_x_0, [np.array(imus[0].resampled_euler_x[i:-number_of_points + i])], 0)
-                out_x_2 = np.append(out_x_2, [np.array(imus[2].resampled_euler_x[i:-number_of_points + i])], 0)
-                out_y_0 = np.append(out_y_0, [np.array(imus[0].resampled_euler_y[i:-number_of_points + i])], 0)
-                out_y_2 = np.append(out_y_2, [np.array(imus[2].resampled_euler_y[i:-number_of_points + i])], 0)
-        out = np.append(out_z_0, out_z_2, 0)
-        out = np.append(out, out_x_0, 0)
-        out = np.append(out, out_x_2, 0)
-        out = np.append(out, out_y_0, 0)
-        out = np.append(out, out_y_2, 0)
-        out = np.append(out, [dz0[number_of_points:]], 0)
-        out = np.append(out, [dz2[number_of_points:]], 0)
-        out = np.append(out, [dx0[number_of_points:]], 0)
-        out = np.append(out, [dx2[number_of_points:]], 0)
-        out = np.append(out, [dy0[number_of_points:]], 0)
-        out = np.append(out, [dy2[number_of_points:]], 0)
+                out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
+                out_qx_2 = np.append(out_qx_2, [np.array(imus[imu_1].resampled_x[i:-number_of_points + i])], 0)
+                out_qy_0 = np.append(out_qy_0, [np.array(imus[imu_0].resampled_y[i:-number_of_points + i])], 0)
+                out_qy_2 = np.append(out_qy_2, [np.array(imus[imu_1].resampled_y[i:-number_of_points + i])], 0)
+                out_qz_0 = np.append(out_qz_0, [np.array(imus[imu_0].resampled_z[i:-number_of_points + i])], 0)
+                out_qz_2 = np.append(out_qz_2, [np.array(imus[imu_1].resampled_z[i:-number_of_points + i])], 0)
+                out_qw_0 = np.append(out_qw_0, [np.array(imus[imu_0].resampled_w[i:-number_of_points + i])], 0)
+                out_qw_2 = np.append(out_qw_2, [np.array(imus[imu_1].resampled_w[i:-number_of_points + i])], 0)
+
+                out_dqx0 = np.append(out_dqx0, [np.array(dqx0[i:-number_of_points + i])], 0)
+                out_dqx2 = np.append(out_dqx2, [np.array(dqx2[i:-number_of_points + i])], 0)
+                out_dqy0 = np.append(out_dqy0, [np.array(dqy0[i:-number_of_points + i])], 0)
+                out_dqy2 = np.append(out_dqy2, [np.array(dqy2[i:-number_of_points + i])], 0)
+                out_dqz0 = np.append(out_dqz0, [np.array(dqz0[i:-number_of_points + i])], 0)
+                out_dqz2 = np.append(out_dqz2, [np.array(dqz2[i:-number_of_points + i])], 0)
+                out_dqw0 = np.append(out_dqw0, [np.array(dqw0[i:-number_of_points + i])], 0)
+                out_dqw2 = np.append(out_dqw2, [np.array(dqw2[i:-number_of_points + i])], 0)
+
+                # out_z_0 = np.append(out_z_0, [np.array(imus[0].resampled_euler_z[i:-number_of_points + i])], 0)
+                # out_z_2 = np.append(out_z_2, [np.array(imus[2].resampled_euler_z[i:-number_of_points + i])], 0)
+                # out_x_0 = np.append(out_x_0, [np.array(imus[0].resampled_euler_x[i:-number_of_points + i])], 0)
+                # out_x_2 = np.append(out_x_2, [np.array(imus[2].resampled_euler_x[i:-number_of_points + i])], 0)
+                # out_y_0 = np.append(out_y_0, [np.array(imus[0].resampled_euler_y[i:-number_of_points + i])], 0)
+                # out_y_2 = np.append(out_y_2, [np.array(imus[2].resampled_euler_y[i:-number_of_points + i])], 0)
+
+        out = np.append(out_qx_0, out_qx_2, 0)
+        out = np.append(out, out_qy_0, 0)
+        out = np.append(out, out_qy_2, 0)
+        out = np.append(out, out_qz_0, 0)
+        out = np.append(out, out_qz_2, 0)
+        out = np.append(out, out_qw_0, 0)
+        out = np.append(out, out_qw_2, 0)
+        out = np.append(out, out_dqx0, 0)
+        out = np.append(out, out_dqx2, 0)
+        out = np.append(out, out_dqy0, 0)
+        out = np.append(out, out_dqy2, 0)
+        out = np.append(out, out_dqz0, 0)
+        out = np.append(out, out_dqz2, 0)
+        out = np.append(out, out_dqw0, 0)
+        out = np.append(out, out_dqw2, 0)
+
+        # out = np.append(out_z_0, out_z_2, 0)
+        # out = np.append(out, out_x_0, 0)
+        # out = np.append(out, out_x_2, 0)
+        # out = np.append(out, out_y_0, 0)
+        # out = np.append(out, out_y_2, 0)
+        # out = np.append(out, [dz0[number_of_points:]], 0)
+        # out = np.append(out, [dz2[number_of_points:]], 0)
+        # out = np.append(out, [dx0[number_of_points:]], 0)
+        # out = np.append(out, [dx2[number_of_points:]], 0)
+        # out = np.append(out, [dy0[number_of_points:]], 0)
+        # out = np.append(out, [dy2[number_of_points:]], 0)
+
         out = list(out.T)
 
 
+        # Training
         classifier = LinearDiscriminantAnalysis()
         classifier.fit(X, y)
+        save_to_file([X, y, out])
+
+        # Predictions
         predicted_values = classifier.predict(out)
         predicted_values = medfilt(predicted_values, filter_size)
 
 
+        # Evaluation
         print('Evaluating...')
         evaluated_buttons_timestamp = []
         evaluated_buttons_values = []
@@ -350,9 +482,9 @@ for trial in range(len(training_lower_time_table)):
         # Plots
         if normal_plot:
             print('Plotting...')
-            print('IMU 0: {}'.format(imus[0].id))
-            print('IMU 1: {}'.format(imus[1].id))
-            print('IMU 2: {}'.format(imus[2].id))
+            print('IMU 0: {}'.format(imus[imu_0].id))
+            print('IMU 1: {}'.format(imus[imu_1].id))
+            # print('IMU 2: {}'.format(imus[2].id))
             plt.step(buttons_timestamp, buttons_values, 'k', label='buttons')
             # plt.plot(imus[1].timestamp, imus[1].euler_x, 'b-')
             # plt.plot(imus[1].timestamp, imus[1].euler_y, 'b:')
@@ -468,14 +600,14 @@ for trial in range(len(training_lower_time_table)):
                                # {'x': imu_2_z_up_timestamp, 'y': imu_2_z_up_values, 'mode': 'markers', 'name': 'IMU 2 extension'}
                                ]
                     graph_data = graph_data + include
-                if 'emg1' in input_data:
-                    # emg[0] = True
-                    include = [{'x': emg_1_timestamp, 'y': emg_1_values, 'name': 'emg1'}]
-                    graph_data = graph_data + include
-                if 'emg2' in input_data:
-                    # emg[1] = True
-                    include = [{'x': emg_2_timestamp, 'y': emg_2_values, 'name': 'emg2'}]
-                    graph_data = graph_data + include
+                # if 'emg1' in input_data:
+                #     emg[0] = True
+                    # include = [{'x': emg_1_timestamp, 'y': emg_1_values, 'name': 'emg1'}]
+                    # graph_data = graph_data + include
+                # if 'emg2' in input_data:
+                #     emg[1] = True
+                    # include = [{'x': emg_2_timestamp, 'y': emg_2_values, 'name': 'emg2'}]
+                    # graph_data = graph_data + include
 
                 return dcc.Graph(
                     id='graph',
@@ -493,10 +625,10 @@ for trial in range(len(training_lower_time_table)):
             # dash_process = multiprocessing.Process(target=run_dash, args=(app_dash,))
             # dash_process.start()
 
-for i in range(5):
-    plt.figure()
-    plt.hist(total_error[i], bins=10)
-    plt.title('Total error for tolerance = {}s'.format((i + 1) / 10))
-    plt.savefig('total_error_hist_tolerance_{}s.svg'.format((i + 1) / 10))
+# for i in range(5):
+#     plt.figure()
+#     plt.hist(total_error[i], bins=10)
+#     plt.title('Total error for tolerance = {}s'.format((i + 1) / 10))
+#     plt.savefig('total_error_hist_tolerance_{}s.svg'.format((i + 1) / 10))
 
 plt.show()
