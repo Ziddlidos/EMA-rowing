@@ -46,13 +46,12 @@ total_time = 30
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
-filename = 'lucas_test'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -318,14 +317,14 @@ for trial in range(len(training_lower_time_table)):
 
                 # adding number_of_points diff points
                 # quaternions
-                this += list(dqx0[i - number_of_points:i])
-                this += list(dqx2[i - number_of_points:i])
-                this += list(dqy0[i - number_of_points:i])
-                this += list(dqy2[i - number_of_points:i])
-                this += list(dqz0[i - number_of_points:i])
-                this += list(dqz2[i - number_of_points:i])
-                this += list(dqw0[i - number_of_points:i])
-                this += list(dqw2[i - number_of_points:i])
+                # this += list(dqx0[i - number_of_points:i])
+                # this += list(dqx2[i - number_of_points:i])
+                # this += list(dqy0[i - number_of_points:i])
+                # this += list(dqy2[i - number_of_points:i])
+                # this += list(dqz0[i - number_of_points:i])
+                # this += list(dqz2[i - number_of_points:i])
+                # this += list(dqw0[i - number_of_points:i])
+                # this += list(dqw2[i - number_of_points:i])
                 # Euler
                 # this += [dz0[i]]
                 # this += [dz2[i]]
@@ -400,14 +399,14 @@ for trial in range(len(training_lower_time_table)):
         out = np.append(out, out_qz_2, 0)
         out = np.append(out, out_qw_0, 0)
         out = np.append(out, out_qw_2, 0)
-        out = np.append(out, out_dqx0, 0)
-        out = np.append(out, out_dqx2, 0)
-        out = np.append(out, out_dqy0, 0)
-        out = np.append(out, out_dqy2, 0)
-        out = np.append(out, out_dqz0, 0)
-        out = np.append(out, out_dqz2, 0)
-        out = np.append(out, out_dqw0, 0)
-        out = np.append(out, out_dqw2, 0)
+        # out = np.append(out, out_dqx0, 0)
+        # out = np.append(out, out_dqx2, 0)
+        # out = np.append(out, out_dqy0, 0)
+        # out = np.append(out, out_dqy2, 0)
+        # out = np.append(out, out_dqz0, 0)
+        # out = np.append(out, out_dqz2, 0)
+        # out = np.append(out, out_dqw0, 0)
+        # out = np.append(out, out_dqw2, 0)
 
         # out = np.append(out_z_0, out_z_2, 0)
         # out = np.append(out, out_x_0, 0)

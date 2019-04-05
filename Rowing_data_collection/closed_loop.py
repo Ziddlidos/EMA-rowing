@@ -116,7 +116,7 @@ def stim_thread(client):
             else:
                 client.send(command[-1])
             data = client.recv()
-            print(data)
+            # print(data)
             if not data == '':
                 # print(data)
                 server_data.append([time.time(), data])
@@ -155,20 +155,20 @@ def control():
         out = out + imu_arm.z_values[-number_of_points:]
         out = out + imu_forearm.w_values[-number_of_points:]
         out = out + imu_arm.w_values[-number_of_points:]
-        out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
         # print(out)
         result = classifier.predict(np.array(out).reshape(1, -1))
         timestamp.append(time.time())
         command.append(result)
 
-        # print(result)
+        print(result)
 
     now = datetime.datetime.now()
     filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'

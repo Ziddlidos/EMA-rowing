@@ -21,6 +21,11 @@ import threading
 
 stimulation = False
 
+extension_current = 0
+flexion_current = 0
+stim_freq = 50
+stim_pw = 450
+
 connection = True
 try:
     address = ('localhost', 50001)
@@ -95,11 +100,11 @@ def stim_setup():
     current_CH34 = 0
     current_CH56 = 0
     current_CH78 = 0
-    pw = 0
-    freq = 0
+    pw = stim_pw
+    freq = stim_freq
     mode = 3
-    # current_CH12 = int(flag[1:4])
-    # current_CH34 = int(flag[5:8])
+    current_CH12 = extension_current # int(flag[1:4])
+    current_CH34 = flexion_current # int(flag[5:8])
     # current_CH56 = int(flag[9:12])
     # current_CH78 = int(flag[13:16])
     # pw = int(flag[17:20])
@@ -181,13 +186,14 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
         print('waiting for command')
         msg = server.recv()
         print(msg)
+        if int(msg) == -1:
+            msg = 2
         if int(msg) == state:
             server.send([time.time(), stim_state, current_str])
             continue
         state = int(msg)  # state = int(sock.read(1))
         # conversion
-        if state == -1:
-            state = 2
+
         # print(state)
         if mode == 1:  # Extensão B00000011
             if state == 0:
