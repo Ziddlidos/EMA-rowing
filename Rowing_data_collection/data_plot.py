@@ -41,6 +41,7 @@ imu_0 = 0
 # imu_1 = 2
 imu_1 = 1
 
+initial_time = 0
 total_time = 30
 
 # sys.stdout = open('Data/results.txt', 'w')
@@ -264,8 +265,8 @@ def save_to_file(data):
 
 
 
-training_lower_time_table = [0] # [200, 300, 400, 500, 600]
-training_upper_time_table = [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
+training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
+training_upper_time_table = [round((total_time-initial_time) * 3 / 4)+initial_time] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_upper_time_table
 testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
 tolerance_table = [0.3] # [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -317,14 +318,14 @@ for trial in range(len(training_lower_time_table)):
 
                 # adding number_of_points diff points
                 # quaternions
-                # this += list(dqx0[i - number_of_points:i])
-                # this += list(dqx2[i - number_of_points:i])
-                # this += list(dqy0[i - number_of_points:i])
-                # this += list(dqy2[i - number_of_points:i])
-                # this += list(dqz0[i - number_of_points:i])
-                # this += list(dqz2[i - number_of_points:i])
-                # this += list(dqw0[i - number_of_points:i])
-                # this += list(dqw2[i - number_of_points:i])
+                this += list(dqx0[i - number_of_points:i])
+                this += list(dqx2[i - number_of_points:i])
+                this += list(dqy0[i - number_of_points:i])
+                this += list(dqy2[i - number_of_points:i])
+                this += list(dqz0[i - number_of_points:i])
+                this += list(dqz2[i - number_of_points:i])
+                this += list(dqw0[i - number_of_points:i])
+                this += list(dqw2[i - number_of_points:i])
                 # Euler
                 # this += [dz0[i]]
                 # this += [dz2[i]]
@@ -399,14 +400,14 @@ for trial in range(len(training_lower_time_table)):
         out = np.append(out, out_qz_2, 0)
         out = np.append(out, out_qw_0, 0)
         out = np.append(out, out_qw_2, 0)
-        # out = np.append(out, out_dqx0, 0)
-        # out = np.append(out, out_dqx2, 0)
-        # out = np.append(out, out_dqy0, 0)
-        # out = np.append(out, out_dqy2, 0)
-        # out = np.append(out, out_dqz0, 0)
-        # out = np.append(out, out_dqz2, 0)
-        # out = np.append(out, out_dqw0, 0)
-        # out = np.append(out, out_dqw2, 0)
+        out = np.append(out, out_dqx0, 0)
+        out = np.append(out, out_dqx2, 0)
+        out = np.append(out, out_dqy0, 0)
+        out = np.append(out, out_dqy2, 0)
+        out = np.append(out, out_dqz0, 0)
+        out = np.append(out, out_dqz2, 0)
+        out = np.append(out, out_dqw0, 0)
+        out = np.append(out, out_dqw2, 0)
 
         # out = np.append(out_z_0, out_z_2, 0)
         # out = np.append(out, out_x_0, 0)

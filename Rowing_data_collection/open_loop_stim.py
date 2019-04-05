@@ -20,7 +20,7 @@ import threading
 
 # TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 connection = True
 
 controller_address = ('localhost', 50002)
@@ -104,11 +104,11 @@ def stim_setup():
     current_CH34 = 0
     current_CH56 = 0
     current_CH78 = 0
-    pw = 0
-    freq = 0
+    pw = 400
+    freq = 40
     mode = 3
-    # current_CH12 = int(flag[1:4])
-    # current_CH34 = int(flag[5:8])
+    current_CH12 = 15 # int(flag[1:4])
+    current_CH34 = 10 # int(flag[5:8])
     # current_CH56 = int(flag[9:12])
     # current_CH78 = int(flag[13:16])
     # pw = int(flag[17:20])

@@ -155,14 +155,14 @@ def control():
         out = out + imu_arm.z_values[-number_of_points:]
         out = out + imu_forearm.w_values[-number_of_points:]
         out = out + imu_arm.w_values[-number_of_points:]
-        # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
+        out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
         # print(out)
         result = classifier.predict(np.array(out).reshape(1, -1))
         timestamp.append(time.time())

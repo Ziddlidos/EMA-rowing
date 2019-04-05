@@ -4,7 +4,7 @@ import os
 
 stroke_duration = 7
 drive_duration = 3
-extension_duration = 4
+extension_duration = 5
 flexion_duration = stroke_duration - extension_duration
 total_duration = 30
 

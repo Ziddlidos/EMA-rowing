@@ -19,12 +19,12 @@ import threading
 
 # TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 
-extension_current = 0
-flexion_current = 0
-stim_freq = 50
-stim_pw = 450
+extension_current = 15
+flexion_current = 10
+stim_freq = 40
+stim_pw = 400
 
 connection = True
 try:
@@ -183,9 +183,9 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
     pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
     print('starting')
     while state != 3:
-        print('waiting for command')
+        # print('waiting for command')
         msg = server.recv()
-        print(msg)
+        # print(msg)
         if int(msg) == -1:
             msg = 2
         if int(msg) == state:
