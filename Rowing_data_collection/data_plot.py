@@ -18,7 +18,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from data_processing import GetFilesToLoad, resample_series
+from data_processing import GetFilesToLoad, resample_series, IMU
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -26,6 +26,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import numpy as np
 from scipy.signal import medfilt
 import logging
+import quaternion
+import math
 
 
 normal_plot = True
@@ -41,18 +43,18 @@ imu_0 = 0
 # imu_1 = 2
 imu_1 = 1
 
-initial_time = 0
 total_time = 30
 
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-app = QApplication(sys.argv)
-source_file = GetFilesToLoad()
-app.processEvents()
-filename = source_file.filename[0][0]
+# app = QApplication(sys.argv)
+# source_file = GetFilesToLoad()
+# app.processEvents()
+# filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
+filename = 'breno_2.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -98,7 +100,57 @@ print('Resampling and synchronizing...')
                                                                         imus[imu_0].w_values,
                                                                         imus[imu_1].timestamp,
                                                                         imus[imu_1].w_values)
+print('Resampling done')
 
+
+def make_quaternions(imu):
+    q = []
+    for i in range(len(imu.resampled_x)):
+        q.append(quaternion.quaternion(imu.resampled_x[i],
+                                       imu.resampled_y[i],
+                                       imu.resampled_z[i],
+                                       imu.resampled_w[i]))
+    return q
+
+
+q0 = make_quaternions(imus[imu_0])
+q1 = make_quaternions(imus[imu_1])
+
+q = []
+[q.append(i * j.inverse()) for i, j in zip(q0, q1)]
+
+qx = []
+qy = []
+qz = []
+qw = []
+qang = []
+for quat in q:
+    qx.append(quat.x)
+    qy.append(quat.y)
+    qz.append(quat.z)
+    qw.append(quat.w)
+    qang.append(quat.angle()*180/math.pi)
+
+
+fig1, ax1 = plt.subplots()
+ax1.plot(t, qx, label='x')
+ax1.plot(t, qy, label='y')
+ax1.plot(t, qz, label='z')
+ax1.plot(t, qw, label='w')
+plt.legend()
+ax2 = ax1.twinx()
+ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+plt.legend()
+
+fig, ax1 = plt.subplots()
+ax1.plot(t, qang, label='Ang', color='dodgerblue')
+plt.legend()
+ax2 = ax1.twinx()
+ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+plt.legend()
+
+plt.show()
+quit()
 
 # [t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
 #                                                                             imus[2].euler_z,
@@ -265,8 +317,8 @@ def save_to_file(data):
 
 
 
-training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
-training_upper_time_table = [round((total_time-initial_time) * 3 / 4)+initial_time] # [275, 375, 475, 575, 675]
+training_lower_time_table = [0] # [200, 300, 400, 500, 600]
+training_upper_time_table = [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_upper_time_table
 testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
 tolerance_table = [0.3] # [0.1, 0.2, 0.3, 0.4, 0.5]
