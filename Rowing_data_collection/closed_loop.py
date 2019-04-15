@@ -8,6 +8,9 @@ import datetime
 from data_processing import IMU
 import numpy as np
 from scipy.signal import medfilt
+from pyquaternion import Quaternion
+import math
+import sys
 
 imu_forearm_id = 4
 imu_arm_id = 5
@@ -139,30 +142,70 @@ def stim_thread(client):
         running = False
 
 
+def make_quaternions(imu):
+    q = []
+    for i in range(len(imu.resampled_x)):
+        q.append(Quaternion(imu.w_values[i],
+                            imu.x_values[i],
+                            imu.y_values[i],
+                            imu.z_values[i]
+                            ))
+    return q
+
+
+def angle(q):
+    try:
+        qr = q.elements[0]
+        if qr > 1:
+            qr = 1
+        elif qr < -1:
+            qr = -1
+        angle = 2 * math.acos(qr)
+        angle = angle * 180 / math.pi
+        if angle > 180:
+            new_angle = 360 - angle
+        return angle
+    except Exception as e:
+        print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))
+
+
 def control():
     global imu_forearm, imu_arm, classifier, command
     print('Starting control')
     source = 'control'
+    angles = []
     while not len(imu_arm.x_values) > number_of_points + 1 or not len(imu_forearm.x_values) > number_of_points + 1:
         pass
     while running:
+        q0 = make_quaternions(imu_forearm)
+        q1 = make_quaternions(imu_arm)
+
+        q = q0 * q1.conjugate
+        angles.append(angle(q))
+
         out = list()
-        out = out + imu_forearm.x_values[-number_of_points:]
-        out = out + imu_arm.x_values[-number_of_points:]
-        out = out + imu_forearm.y_values[-number_of_points:]
-        out = out + imu_arm.y_values[-number_of_points:]
-        out = out + imu_forearm.z_values[-number_of_points:]
-        out = out + imu_arm.z_values[-number_of_points:]
-        out = out + imu_forearm.w_values[-number_of_points:]
-        out = out + imu_arm.w_values[-number_of_points:]
-        out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
-        out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
+
+        out = out + angles[-number_of_points:]
+        out = out + list(np.diff(angles[-number_of_points - 1:]))
+
+        # quaternions
+        # out = out + imu_forearm.x_values[-number_of_points:]
+        # out = out + imu_arm.x_values[-number_of_points:]
+        # out = out + imu_forearm.y_values[-number_of_points:]
+        # out = out + imu_arm.y_values[-number_of_points:]
+        # out = out + imu_forearm.z_values[-number_of_points:]
+        # out = out + imu_arm.z_values[-number_of_points:]
+        # out = out + imu_forearm.w_values[-number_of_points:]
+        # out = out + imu_arm.w_values[-number_of_points:]
+        # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
+        # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
+
         # print(out)
         result = classifier.predict(np.array(out).reshape(1, -1))
         timestamp.append(time.time())

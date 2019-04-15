@@ -26,8 +26,9 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import numpy as np
 from scipy.signal import medfilt
 import logging
-import quaternion
+# import quaternion
 import math
+from pyquaternion import Quaternion
 
 
 normal_plot = True
@@ -106,10 +107,11 @@ print('Resampling done')
 def make_quaternions(imu):
     q = []
     for i in range(len(imu.resampled_x)):
-        q.append(quaternion.quaternion(imu.resampled_x[i],
-                                       imu.resampled_y[i],
-                                       imu.resampled_z[i],
-                                       imu.resampled_w[i]))
+        q.append(Quaternion(imu.resampled_w[i],
+                            imu.resampled_x[i],
+                            imu.resampled_y[i],
+                            imu.resampled_z[i]
+                            ))
     return q
 
 
@@ -117,19 +119,35 @@ q0 = make_quaternions(imus[imu_0])
 q1 = make_quaternions(imus[imu_1])
 
 q = []
-[q.append(i * j.inverse()) for i, j in zip(q0, q1)]
+[q.append(i * j.conjugate) for i, j in zip(q0, q1)]
 
 qx = []
 qy = []
 qz = []
 qw = []
 qang = []
+
+def angle(q):
+    try:
+        qr = q.elements[0]
+        if qr > 1:
+            qr = 1
+        elif qr < -1:
+            qr = -1
+        angle = 2 * math.acos(qr)
+        angle = angle * 180 / math.pi
+        if angle > 180:
+            new_angle = 360 - angle
+        return angle
+    except Exception as e:
+        print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))
+
 for quat in q:
-    qx.append(quat.x)
-    qy.append(quat.y)
-    qz.append(quat.z)
-    qw.append(quat.w)
-    qang.append(quat.angle()*180/math.pi)
+    qw.append(quat.elements[0])
+    qx.append(quat.elements[1])
+    qy.append(quat.elements[2])
+    qz.append(quat.elements[3])
+    qang.append(angle(quat))
 
 
 fig1, ax1 = plt.subplots()
@@ -149,8 +167,8 @@ ax2 = ax1.twinx()
 ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
 plt.legend()
 
-plt.show()
-quit()
+# plt.show()
+# quit()
 
 # [t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
 #                                                                             imus[2].euler_z,
@@ -169,14 +187,16 @@ quit()
 
 classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values, t)
 
-dqx0 = np.append([0], np.diff(imus[imu_0].resampled_x)/np.diff(t))
-dqx2 = np.append([0], np.diff(imus[imu_1].resampled_x)/np.diff(t))
-dqy0 = np.append([0], np.diff(imus[imu_0].resampled_y)/np.diff(t))
-dqy2 = np.append([0], np.diff(imus[imu_1].resampled_y)/np.diff(t))
-dqz0 = np.append([0], np.diff(imus[imu_0].resampled_z)/np.diff(t))
-dqz2 = np.append([0], np.diff(imus[imu_1].resampled_z)/np.diff(t))
-dqw0 = np.append([0], np.diff(imus[imu_0].resampled_w)/np.diff(t))
-dqw2 = np.append([0], np.diff(imus[imu_1].resampled_w)/np.diff(t))
+dqang = np.append([0], np.diff(qang)/np.diff(t))
+
+# dqx0 = np.append([0], np.diff(imus[imu_0].resampled_x)/np.diff(t))
+# dqx2 = np.append([0], np.diff(imus[imu_1].resampled_x)/np.diff(t))
+# dqy0 = np.append([0], np.diff(imus[imu_0].resampled_y)/np.diff(t))
+# dqy2 = np.append([0], np.diff(imus[imu_1].resampled_y)/np.diff(t))
+# dqz0 = np.append([0], np.diff(imus[imu_0].resampled_z)/np.diff(t))
+# dqz2 = np.append([0], np.diff(imus[imu_1].resampled_z)/np.diff(t))
+# dqw0 = np.append([0], np.diff(imus[imu_0].resampled_w)/np.diff(t))
+# dqw2 = np.append([0], np.diff(imus[imu_1].resampled_w)/np.diff(t))
 
 # dz0 = np.append([0], np.diff(imus[0].resampled_euler_z)/np.diff(t))
 # dz2 = np.append([0], np.diff(imus[2].resampled_euler_z)/np.diff(t))
@@ -318,8 +338,8 @@ def save_to_file(data):
 
 
 training_lower_time_table = [0] # [200, 300, 400, 500, 600]
-training_upper_time_table = [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
-testing_lower_time_table = training_upper_time_table
+training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
+testing_lower_time_table = training_lower_time_table # training_upper_time_table
 testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
 tolerance_table = [0.3] # [0.1, 0.2, 0.3, 0.4, 0.5]
 # training_lower_time_table = [500, 600]
@@ -351,15 +371,19 @@ for trial in range(len(training_lower_time_table)):
             if training_lower_time < t[i] < training_upper_time:
                 this = []
                 # adding number_of_points points
+                # joint angle
+                this += [j for j in qang[i - number_of_points:i]]
+
                 # quaternions
-                this += [j for j in imus[imu_0].resampled_x[i - number_of_points:i]]
-                this += [j for j in imus[imu_1].resampled_x[i - number_of_points:i]]
-                this += [j for j in imus[imu_0].resampled_y[i - number_of_points:i]]
-                this += [j for j in imus[imu_1].resampled_y[i - number_of_points:i]]
-                this += [j for j in imus[imu_0].resampled_z[i - number_of_points:i]]
-                this += [j for j in imus[imu_1].resampled_z[i - number_of_points:i]]
-                this += [j for j in imus[imu_0].resampled_w[i - number_of_points:i]]
-                this += [j for j in imus[imu_1].resampled_w[i - number_of_points:i]]
+                # this += [j for j in imus[imu_0].resampled_x[i - number_of_points:i]]
+                # this += [j for j in imus[imu_1].resampled_x[i - number_of_points:i]]
+                # this += [j for j in imus[imu_0].resampled_y[i - number_of_points:i]]
+                # this += [j for j in imus[imu_1].resampled_y[i - number_of_points:i]]
+                # this += [j for j in imus[imu_0].resampled_z[i - number_of_points:i]]
+                # this += [j for j in imus[imu_1].resampled_z[i - number_of_points:i]]
+                # this += [j for j in imus[imu_0].resampled_w[i - number_of_points:i]]
+                # this += [j for j in imus[imu_1].resampled_w[i - number_of_points:i]]
+
                 # Euler
                 # this += [j for j in imus[0].resampled_euler_z[i - number_of_points:i]]
                 # this += [j for j in imus[2].resampled_euler_z[i - number_of_points:i]]
@@ -369,15 +393,19 @@ for trial in range(len(training_lower_time_table)):
                 # this += [j for j in imus[2].resampled_euler_y[i - number_of_points:i]]
 
                 # adding number_of_points diff points
+                # joint angle
+                this += list(dqang[i - number_of_points:i])
+
                 # quaternions
-                this += list(dqx0[i - number_of_points:i])
-                this += list(dqx2[i - number_of_points:i])
-                this += list(dqy0[i - number_of_points:i])
-                this += list(dqy2[i - number_of_points:i])
-                this += list(dqz0[i - number_of_points:i])
-                this += list(dqz2[i - number_of_points:i])
-                this += list(dqw0[i - number_of_points:i])
-                this += list(dqw2[i - number_of_points:i])
+                # this += list(dqx0[i - number_of_points:i])
+                # this += list(dqx2[i - number_of_points:i])
+                # this += list(dqy0[i - number_of_points:i])
+                # this += list(dqy2[i - number_of_points:i])
+                # this += list(dqz0[i - number_of_points:i])
+                # this += list(dqz2[i - number_of_points:i])
+                # this += list(dqw0[i - number_of_points:i])
+                # this += list(dqw2[i - number_of_points:i])
+
                 # Euler
                 # this += [dz0[i]]
                 # this += [dz2[i]]
@@ -393,23 +421,28 @@ for trial in range(len(training_lower_time_table)):
 
 
         # Building evaluating data
-        out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
-        out_qx_2 = [np.array(imus[imu_1].resampled_x[:-number_of_points])]
-        out_qy_0 = [np.array(imus[imu_0].resampled_y[:-number_of_points])]
-        out_qy_2 = [np.array(imus[imu_1].resampled_y[:-number_of_points])]
-        out_qz_0 = [np.array(imus[imu_0].resampled_z[:-number_of_points])]
-        out_qz_2 = [np.array(imus[imu_1].resampled_z[:-number_of_points])]
-        out_qw_0 = [np.array(imus[imu_0].resampled_w[:-number_of_points])]
-        out_qw_2 = [np.array(imus[imu_1].resampled_w[:-number_of_points])]
+        # joint angle
+        out_qang = [np.array(qang[:-number_of_points])]
+        out_dqang = [np.array(dqang[:-number_of_points])]
 
-        out_dqx0 = [np.array(dqx0[:-number_of_points])]
-        out_dqx2 = [np.array(dqx2[:-number_of_points])]
-        out_dqy0 = [np.array(dqy0[:-number_of_points])]
-        out_dqy2 = [np.array(dqy2[:-number_of_points])]
-        out_dqz0 = [np.array(dqz0[:-number_of_points])]
-        out_dqz2 = [np.array(dqz2[:-number_of_points])]
-        out_dqw0 = [np.array(dqw0[:-number_of_points])]
-        out_dqw2 = [np.array(dqw2[:-number_of_points])]
+        # quaternions
+        # out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
+        # out_qx_2 = [np.array(imus[imu_1].resampled_x[:-number_of_points])]
+        # out_qy_0 = [np.array(imus[imu_0].resampled_y[:-number_of_points])]
+        # out_qy_2 = [np.array(imus[imu_1].resampled_y[:-number_of_points])]
+        # out_qz_0 = [np.array(imus[imu_0].resampled_z[:-number_of_points])]
+        # out_qz_2 = [np.array(imus[imu_1].resampled_z[:-number_of_points])]
+        # out_qw_0 = [np.array(imus[imu_0].resampled_w[:-number_of_points])]
+        # out_qw_2 = [np.array(imus[imu_1].resampled_w[:-number_of_points])]
+        #
+        # out_dqx0 = [np.array(dqx0[:-number_of_points])]
+        # out_dqx2 = [np.array(dqx2[:-number_of_points])]
+        # out_dqy0 = [np.array(dqy0[:-number_of_points])]
+        # out_dqy2 = [np.array(dqy2[:-number_of_points])]
+        # out_dqz0 = [np.array(dqz0[:-number_of_points])]
+        # out_dqz2 = [np.array(dqz2[:-number_of_points])]
+        # out_dqw0 = [np.array(dqw0[:-number_of_points])]
+        # out_dqw2 = [np.array(dqw2[:-number_of_points])]
 
 
         # out_z_0 = [np.array(imus[0].resampled_euler_z[:-number_of_points])]
@@ -420,23 +453,28 @@ for trial in range(len(training_lower_time_table)):
         # out_y_2 = [np.array(imus[2].resampled_euler_y[:-number_of_points])]
         if number_of_points > 1:
             for i in range(1, number_of_points):
-                out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
-                out_qx_2 = np.append(out_qx_2, [np.array(imus[imu_1].resampled_x[i:-number_of_points + i])], 0)
-                out_qy_0 = np.append(out_qy_0, [np.array(imus[imu_0].resampled_y[i:-number_of_points + i])], 0)
-                out_qy_2 = np.append(out_qy_2, [np.array(imus[imu_1].resampled_y[i:-number_of_points + i])], 0)
-                out_qz_0 = np.append(out_qz_0, [np.array(imus[imu_0].resampled_z[i:-number_of_points + i])], 0)
-                out_qz_2 = np.append(out_qz_2, [np.array(imus[imu_1].resampled_z[i:-number_of_points + i])], 0)
-                out_qw_0 = np.append(out_qw_0, [np.array(imus[imu_0].resampled_w[i:-number_of_points + i])], 0)
-                out_qw_2 = np.append(out_qw_2, [np.array(imus[imu_1].resampled_w[i:-number_of_points + i])], 0)
+                # joint angle
+                out_qang = np.append(out_qang, [np.array(qang[i:-number_of_points + i])], 0)
+                out_dqang = np.append(out_dqang, [np.array(dqang[i:-number_of_points + i])], 0)
 
-                out_dqx0 = np.append(out_dqx0, [np.array(dqx0[i:-number_of_points + i])], 0)
-                out_dqx2 = np.append(out_dqx2, [np.array(dqx2[i:-number_of_points + i])], 0)
-                out_dqy0 = np.append(out_dqy0, [np.array(dqy0[i:-number_of_points + i])], 0)
-                out_dqy2 = np.append(out_dqy2, [np.array(dqy2[i:-number_of_points + i])], 0)
-                out_dqz0 = np.append(out_dqz0, [np.array(dqz0[i:-number_of_points + i])], 0)
-                out_dqz2 = np.append(out_dqz2, [np.array(dqz2[i:-number_of_points + i])], 0)
-                out_dqw0 = np.append(out_dqw0, [np.array(dqw0[i:-number_of_points + i])], 0)
-                out_dqw2 = np.append(out_dqw2, [np.array(dqw2[i:-number_of_points + i])], 0)
+                # quaternions
+                # out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
+                # out_qx_2 = np.append(out_qx_2, [np.array(imus[imu_1].resampled_x[i:-number_of_points + i])], 0)
+                # out_qy_0 = np.append(out_qy_0, [np.array(imus[imu_0].resampled_y[i:-number_of_points + i])], 0)
+                # out_qy_2 = np.append(out_qy_2, [np.array(imus[imu_1].resampled_y[i:-number_of_points + i])], 0)
+                # out_qz_0 = np.append(out_qz_0, [np.array(imus[imu_0].resampled_z[i:-number_of_points + i])], 0)
+                # out_qz_2 = np.append(out_qz_2, [np.array(imus[imu_1].resampled_z[i:-number_of_points + i])], 0)
+                # out_qw_0 = np.append(out_qw_0, [np.array(imus[imu_0].resampled_w[i:-number_of_points + i])], 0)
+                # out_qw_2 = np.append(out_qw_2, [np.array(imus[imu_1].resampled_w[i:-number_of_points + i])], 0)
+                #
+                # out_dqx0 = np.append(out_dqx0, [np.array(dqx0[i:-number_of_points + i])], 0)
+                # out_dqx2 = np.append(out_dqx2, [np.array(dqx2[i:-number_of_points + i])], 0)
+                # out_dqy0 = np.append(out_dqy0, [np.array(dqy0[i:-number_of_points + i])], 0)
+                # out_dqy2 = np.append(out_dqy2, [np.array(dqy2[i:-number_of_points + i])], 0)
+                # out_dqz0 = np.append(out_dqz0, [np.array(dqz0[i:-number_of_points + i])], 0)
+                # out_dqz2 = np.append(out_dqz2, [np.array(dqz2[i:-number_of_points + i])], 0)
+                # out_dqw0 = np.append(out_dqw0, [np.array(dqw0[i:-number_of_points + i])], 0)
+                # out_dqw2 = np.append(out_dqw2, [np.array(dqw2[i:-number_of_points + i])], 0)
 
                 # out_z_0 = np.append(out_z_0, [np.array(imus[0].resampled_euler_z[i:-number_of_points + i])], 0)
                 # out_z_2 = np.append(out_z_2, [np.array(imus[2].resampled_euler_z[i:-number_of_points + i])], 0)
@@ -445,21 +483,25 @@ for trial in range(len(training_lower_time_table)):
                 # out_y_0 = np.append(out_y_0, [np.array(imus[0].resampled_euler_y[i:-number_of_points + i])], 0)
                 # out_y_2 = np.append(out_y_2, [np.array(imus[2].resampled_euler_y[i:-number_of_points + i])], 0)
 
-        out = np.append(out_qx_0, out_qx_2, 0)
-        out = np.append(out, out_qy_0, 0)
-        out = np.append(out, out_qy_2, 0)
-        out = np.append(out, out_qz_0, 0)
-        out = np.append(out, out_qz_2, 0)
-        out = np.append(out, out_qw_0, 0)
-        out = np.append(out, out_qw_2, 0)
-        out = np.append(out, out_dqx0, 0)
-        out = np.append(out, out_dqx2, 0)
-        out = np.append(out, out_dqy0, 0)
-        out = np.append(out, out_dqy2, 0)
-        out = np.append(out, out_dqz0, 0)
-        out = np.append(out, out_dqz2, 0)
-        out = np.append(out, out_dqw0, 0)
-        out = np.append(out, out_dqw2, 0)
+        # joint angle
+        out = np.append(out_qang, out_dqang, 0)
+
+        # quaternions
+        # out = np.append(out_qx_0, out_qx_2, 0)
+        # out = np.append(out, out_qy_0, 0)
+        # out = np.append(out, out_qy_2, 0)
+        # out = np.append(out, out_qz_0, 0)
+        # out = np.append(out, out_qz_2, 0)
+        # out = np.append(out, out_qw_0, 0)
+        # out = np.append(out, out_qw_2, 0)
+        # out = np.append(out, out_dqx0, 0)
+        # out = np.append(out, out_dqx2, 0)
+        # out = np.append(out, out_dqy0, 0)
+        # out = np.append(out, out_dqy2, 0)
+        # out = np.append(out, out_dqz0, 0)
+        # out = np.append(out, out_dqz2, 0)
+        # out = np.append(out, out_dqw0, 0)
+        # out = np.append(out, out_dqw2, 0)
 
         # out = np.append(out_z_0, out_z_2, 0)
         # out = np.append(out, out_x_0, 0)
@@ -536,6 +578,8 @@ for trial in range(len(training_lower_time_table)):
             print('Plotting...')
             print('IMU 0: {}'.format(imus[imu_0].id))
             print('IMU 1: {}'.format(imus[imu_1].id))
+
+            plt.figure()
             # print('IMU 2: {}'.format(imus[2].id))
             plt.step(buttons_timestamp, buttons_values, 'k', label='buttons')
             # plt.plot(imus[1].timestamp, imus[1].euler_x, 'b-')
@@ -554,7 +598,7 @@ for trial in range(len(training_lower_time_table)):
             # [plt.plot(packet.timestamp, packet.values, 'r.', label='Extension') for packet in up]
             # plt.plot(t, classification0, 'c')
             plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
-            plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
+            # plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
             # plt.plot(imus[0].timestamp, imus[0].euler_x, 'r-')
             # plt.plot(imus[0].timestamp, imus[0].euler_y, 'r:')
             # plt.plot(imus[0].timestamp, imus[0].euler_z, 'r--')
