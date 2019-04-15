@@ -33,12 +33,12 @@ For closed loop
 
 1 - Run main_data.py
 2 - Run imu_data.py
-3 - Run open_loop_stim
-4 - Run open_loop_controller.py (you can set times here)
-5 - Press ENTER
+3 - Run open_loop_stim or MainStimAndroid.py
+4 - Run open_loop_controller.py (you can set times here) (if not using Android version)
+5 - Press ENTER (if not using Android version)
 6 - Start rowing
-7 - Follow sound cues. One sound starts extensions, the other starts flexion.
-8 - It stops after total_time
+7 - Follow sound cues. One sound starts extensions, the other starts flexion. (If not using Android version)
+8 - It stops after total_time (If not using Android version)
 9 - stops scripts in reverse order
 10 - run data_analysis.py
 11 - run data_plot.py (set parameters)

@@ -34,28 +34,29 @@ from pyquaternion import Quaternion
 normal_plot = True
 dash_plot = False
 
-number_of_points = 10
-filter_size = 11
+number_of_points = 50
+filter_size = 29
 
-imu_forearm_id = 5
-imu_arm_id = 4
+imu_forearm_id = 4
+imu_arm_id = 3
 
 imu_0 = 0
 # imu_1 = 2
 imu_1 = 1
 
-total_time = 30
+initial_time = 40
+total_time = 120
 
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
-filename = 'breno_2.out'
+# filename = 'breno_2.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -162,6 +163,7 @@ plt.legend()
 
 fig, ax1 = plt.subplots()
 ax1.plot(t, qang, label='Ang', color='dodgerblue')
+# ax1.xaxis([0, 90])
 plt.legend()
 ax2 = ax1.twinx()
 ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
@@ -337,7 +339,7 @@ def save_to_file(data):
 
 
 
-training_lower_time_table = [0] # [200, 300, 400, 500, 600]
+training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
 training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_lower_time_table # training_upper_time_table
 testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
@@ -365,7 +367,9 @@ for trial in range(len(training_lower_time_table)):
                                                                                       testing_upper_time,
                                                                                       tolerance))
         print('Learning...')
-
+        # TODO: different number_of_points for current points and past points
+        # TODO: save these values on file
+        # TODO: think nwhat to do in the beggining, when there is not enough data
         # Building learning data
         for i in range(number_of_points, len(t)):
             if training_lower_time < t[i] < training_upper_time:
@@ -538,9 +542,9 @@ for trial in range(len(training_lower_time_table)):
             if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
                 evaluated_buttons_timestamp.append(buttons_timestamp[i])
                 evaluated_buttons_values.append(buttons_values[i])
-        for i in range(len(t)):
+        for i in range(len(t) - filter_size - 1):
             if testing_lower_time < t[i] < testing_upper_time:
-                evaluated_predicted_time.append(t[i])
+                evaluated_predicted_time.append(t[i + filter_size])
                 evaluated_predicted_values.append(predicted_values[i])
 
         [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
@@ -564,7 +568,7 @@ for trial in range(len(training_lower_time_table)):
         # and not only on transitions
         performance = 0
         total = 0
-        for i in range(1, len(t)):
+        for i in range(1, len(t) - filter_size - 1):
             if testing_lower_time < t[i] < testing_upper_time:
                 if predicted_values[i] == classification0[i]:
                     performance += 1

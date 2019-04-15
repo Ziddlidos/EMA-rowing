@@ -31,7 +31,7 @@ real_time_plot = True
 if real_time_plot:
 
     imu1_id = 4
-    imu2_id = 5
+    imu2_id = 3
 
     # x and y are used to graph results in real time
     size_of_graph = 10000
@@ -58,7 +58,7 @@ if real_time_plot:
 
 
     curve_x = my_plot.plot(x = t, pen='b')
-    curve_y = my_plot.plot(pen='r')
+    curve_y = my_plot.plot(x = t, pen='r')
 
 
     # x = [0] * 1000
@@ -158,6 +158,8 @@ def do_stuff(client, source, t, ang, fes, start_time, running):
 
         t[0:-1] = t[1:]
         t[-1] = time.time() - start_time
+
+        # print(source)
         if source == 'imus':
             new_quat = Quaternion(data[2], data[3], data[4], data[5])
             id = data[1]
@@ -175,10 +177,25 @@ def do_stuff(client, source, t, ang, fes, start_time, running):
             ang[0:-1] = ang[1:]
             ang[-1] = new_angle
 
+            fes[0:-1] = fes[1:]
+            fes[-1] = fes[-2]
+
 
         elif source == 'stim':
+            print('update stim')
+            stim_state = data[1]
+            state = 0
+            if stim_state == 'stop':
+                state = 0
+            elif stim_state == 'extension':
+                state = 1
+            elif stim_state == 'flexion':
+                state = -1
             fes[0:-1] = fes[1:]
-            fes[-1] = data[1]
+            fes[-1] = state * 45 + 45
+
+            ang[0:-1] = ang[1:]
+            ang[-1] = ang[-2]
 
     server_data = []
 
@@ -187,7 +204,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running):
             data = client.recv()
             if not data == '':
                 server_data.append([time.time(), data])
-
+                print('received stim data')
                 if real_time_plot:
                     update_plot()
 

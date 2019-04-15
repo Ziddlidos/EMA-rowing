@@ -13,13 +13,13 @@ import math
 import sys
 
 imu_forearm_id = 4
-imu_arm_id = 5
+imu_arm_id = 3
 
 imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)
 
-number_of_points = 10
-filter_size = 5
+number_of_points = 50
+filter_size = 29
 
 command = [0]
 timestamp = [time.time()]
@@ -144,7 +144,7 @@ def stim_thread(client):
 
 def make_quaternions(imu):
     q = []
-    for i in range(len(imu.resampled_x)):
+    for i in range(len(imu.w_values)):
         q.append(Quaternion(imu.w_values[i],
                             imu.x_values[i],
                             imu.y_values[i],
@@ -174,44 +174,49 @@ def control():
     print('Starting control')
     source = 'control'
     angles = []
+    q = []
     while not len(imu_arm.x_values) > number_of_points + 1 or not len(imu_forearm.x_values) > number_of_points + 1:
         pass
     while running:
         q0 = make_quaternions(imu_forearm)
         q1 = make_quaternions(imu_arm)
 
-        q = q0 * q1.conjugate
-        angles.append(angle(q))
 
-        out = list()
+        q.append(q0[-1] * q1[-1].conjugate)
+        angles.append(angle(q[-1]))
 
-        out = out + angles[-number_of_points:]
-        out = out + list(np.diff(angles[-number_of_points - 1:]))
+        if len(angles) > number_of_points:
 
-        # quaternions
-        # out = out + imu_forearm.x_values[-number_of_points:]
-        # out = out + imu_arm.x_values[-number_of_points:]
-        # out = out + imu_forearm.y_values[-number_of_points:]
-        # out = out + imu_arm.y_values[-number_of_points:]
-        # out = out + imu_forearm.z_values[-number_of_points:]
-        # out = out + imu_arm.z_values[-number_of_points:]
-        # out = out + imu_forearm.w_values[-number_of_points:]
-        # out = out + imu_arm.w_values[-number_of_points:]
-        # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
-        # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
 
-        # print(out)
-        result = classifier.predict(np.array(out).reshape(1, -1))
-        timestamp.append(time.time())
-        command.append(result)
+            out = list()
 
-        print(result)
+            out = out + angles[-number_of_points:]
+            out = out + list(np.diff(angles[-number_of_points - 1:]))
+
+            # quaternions
+            # out = out + imu_forearm.x_values[-number_of_points:]
+            # out = out + imu_arm.x_values[-number_of_points:]
+            # out = out + imu_forearm.y_values[-number_of_points:]
+            # out = out + imu_arm.y_values[-number_of_points:]
+            # out = out + imu_forearm.z_values[-number_of_points:]
+            # out = out + imu_arm.z_values[-number_of_points:]
+            # out = out + imu_forearm.w_values[-number_of_points:]
+            # out = out + imu_arm.w_values[-number_of_points:]
+            # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
+            # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
+
+            # print(out)
+            result = classifier.predict(np.array(out).reshape(1, -1))
+            timestamp.append(time.time())
+            command.append(result)
+
+            print(result)
 
     now = datetime.datetime.now()
     filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'

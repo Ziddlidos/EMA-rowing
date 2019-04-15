@@ -9,7 +9,7 @@ Date: Feb 25th 2019
 import stimulator
 import serial
 import time
-# import bluetooth
+import bluetooth
 import serial.tools.list_ports
 import io
 from multiprocessing.connection import Client
@@ -21,12 +21,7 @@ import threading
 
 stimulation = True
 
-extension_current = 10
-flexion_current = 8
-stim_freq = 40
-stim_pw = 300
-
-connection = True
+connection = False
 try:
     address = ('localhost', 50001)
     server = Client(address)
@@ -44,6 +39,7 @@ a = serial.tools.list_ports.comports()
 for w in a:
     print("\tPort:", w.device, "\tSerial#:", w.serial_number, "\tDesc:", w.description)
     if w.description == 'USB2.0-Serial':
+        # if w.pid == 'F8:95:C7:8D:18:03':
         bd_addr = w.device
     elif w.description == 'USB <-> Stimu_Control':
         stimulatorPort = w.device
@@ -51,7 +47,18 @@ for w in a:
 # bd_addr = '/dev/cu.usbserial-1410'
 # stimulatorPort = 'stimPort'
 # sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
-# time.sleep(5)
+
+hostMACAddress = '28:3A:4D:93:15:0E'  # The MAC address of a Bluetooth adapter on the server. The server might have multiple Bluetooth adapters.
+port = 1
+backlog = 1
+size = 1024
+sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+sock.bind((hostMACAddress, port))
+sock.listen(backlog)
+time.sleep(1)
+client, clientInfo = sock.accept()
+
+time.sleep(5)
 current_str = [0, 0, 0, 0, 0, 0, 0, 0]
 running = True
 
@@ -60,27 +67,29 @@ print("Conectando")
 statSend = True
 statWait = True
 
-# sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
+client.send("a")  # envia 'a' sinalizando a conexao para o controlador
 # while statSend == True:
 # time.sleep(1)
 # TODO make handshake
 '''
 temp= sock.readline()
 Temp = temp.decode()
-Temp = temp[0:8]
-if temp == 'conectou':
+Temp = temp[0:11]
+if temp == 'btConectado':
     statWait = False
     statSend = False     
 '''
+
 print("Conectado")
 
 parametros = 'No parameters'
 # statWait = True
-# while statWait:
-#     p = sock.readline()
-#     parametros = p[0:28]
-#     if len(parametros) > 1:
-#         statWait = False
+while statWait:
+    p = client.recv(size)
+    parametros = p.decode()
+    parametros = parametros[0:28]
+    if len(parametros) > 20:
+        statWait = False
 
 if stimulation:
     serialStimulator = serial.Serial(stimulatorPort, baudrate=115200, timeout=0.1)
@@ -90,26 +99,18 @@ if stimulation:
 print('recebeu parametros:')
 print(parametros)
 
-# flag = parametros
+flag = parametros
 
 
 def stim_setup():
-    # print(flag)
-    print('Hard coded parameters')
-    current_CH12 = 0
-    current_CH34 = 0
-    current_CH56 = 0
-    current_CH78 = 0
-    pw = stim_pw
-    freq = stim_freq
-    mode = 3
-    current_CH12 = extension_current # int(flag[1:4])
-    current_CH34 = flexion_current # int(flag[5:8])
-    # current_CH56 = int(flag[9:12])
-    # current_CH78 = int(flag[13:16])
-    # pw = int(flag[17:20])
-    # freq = int(flag[21:24])
-    # mode = int(flag[25:28])
+    print(flag)
+    current_CH12 = int(flag[1:4])
+    current_CH34 = int(flag[5:8])
+    current_CH56 = int(flag[9:12])
+    current_CH78 = int(flag[13:16])
+    pw = int(flag[17:20])
+    freq = int(flag[21:24])
+    mode = int(flag[25:28])
     print(current_CH12, current_CH34, pw, mode, freq)
     canais = channels(mode)
 
@@ -181,19 +182,10 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
     # print(state)
     stim_state = 'stop'
     pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-    print('starting')
     while state != 3:
-        # print('waiting for command')
-        msg = server.recv()
-        # print(msg)
-        if int(msg) == -1:
-            msg = 2
-        if int(msg) == state:
-            server.send([time.time(), stim_state, current_str])
-            continue
-        state = int(msg)  # state = int(sock.read(1))
-        # conversion
-
+        # while sock.inWaiting() == 0:
+        #   pass
+        state = int(client.recv(size))  # state = int(sock.read(1))
         # print(state)
         if mode == 1:  # Extensão B00000011
             if state == 0:
@@ -304,7 +296,7 @@ def main():
     if stimulation:
         stim.stop()
         serialStimulator.close()
-    # sock.close()
+    sock.close()
 
     print("Saiu")
 
