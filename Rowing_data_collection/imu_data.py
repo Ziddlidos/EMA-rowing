@@ -83,11 +83,12 @@ for i in range(len(addresses)):
         out = '>> ' + serial_port.read(serial_port.inWaiting()).decode()
 
 # Gyro autocalibration
-for i in range(len(addresses)):
+'''for i in range(len(addresses)):
     serial_port.write(('>'+str(addresses[i])+',165\n').encode())
     time.sleep(0.1)
     while serial_port.inWaiting():
         out = '>> ' + serial_port.read(serial_port.inWaiting()).decode()
+'''
 
 # Tare
 for i in range(len(addresses)):

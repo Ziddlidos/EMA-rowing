@@ -206,8 +206,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
             data = client.recv()
             if not data == '':
                 server_data.append([time.time(), data])
-                data.append('|')
-                imu_data[data[1]] = data[:]
+                imu_data[data[1]] = data[:]+['|']
                 # print('received stim data')
                 if real_time_plot:
                     update_plot()
