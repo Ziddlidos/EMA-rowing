@@ -26,21 +26,20 @@ from pyquaternion import Quaternion
 
 import json
 
-real_time_plot = True
+real_time_plot = False
 
+# x and y are used to graph results in real time
+size_of_graph = 10000
+t = multiprocessing.Array('d', size_of_graph)
+ang = multiprocessing.Array('d', size_of_graph)
+fes = multiprocessing.Array('d', size_of_graph)
+running = multiprocessing.Value('b')
+start_time = time.time()
 
 if real_time_plot:
 
     imu1_id = 4
     imu2_id = 3
-
-    # x and y are used to graph results in real time
-    size_of_graph = 10000
-    t = multiprocessing.Array('d', size_of_graph)
-    ang = multiprocessing.Array('d', size_of_graph)
-    fes = multiprocessing.Array('d', size_of_graph)
-    running = multiprocessing.Value('b')
-    start_time = time.time()
 
     for i in range(size_of_graph):
         t[i] = 0
@@ -205,9 +204,8 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
             data = client.recv()
             if not data == '':
                 server_data.append([time.time(), data])
-                data.append('|')
-                imu_data[data[1]] = data[:]
-                print('received stim data')
+                imu_data[data[1]] = data[:]+['|']
+                #print('received stim data')
                 if real_time_plot:
                     update_plot()
 
@@ -341,7 +339,7 @@ def vr_server(address, port, imu_data):
             out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
             conn.send(out_data.encode())
             # del imu_data[:]
-            # print(out_data)
+            print(out_data)
         else:
             print('Disconnected from {}'.format(addr))
             break
