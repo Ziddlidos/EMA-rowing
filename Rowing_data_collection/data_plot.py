@@ -34,7 +34,8 @@ from pyquaternion import Quaternion
 normal_plot = True
 dash_plot = False
 
-number_of_points = 50
+number_of_points = 1
+number_of_points_diff = number_of_points
 filter_size = 29
 
 imu_forearm_id = 4
@@ -44,8 +45,8 @@ imu_0 = 0
 # imu_1 = 2
 imu_1 = 1
 
-initial_time = 40
-total_time = 120
+initial_time = 5
+total_time = 30
 
 # sys.stdout = open('Data/results.txt', 'w')
 
@@ -398,7 +399,7 @@ for trial in range(len(training_lower_time_table)):
 
                 # adding number_of_points diff points
                 # joint angle
-                this += list(dqang[i - number_of_points:i])
+                this += list(dqang[i - number_of_points_diff:i])
 
                 # quaternions
                 # this += list(dqx0[i - number_of_points:i])
@@ -427,7 +428,7 @@ for trial in range(len(training_lower_time_table)):
         # Building evaluating data
         # joint angle
         out_qang = [np.array(qang[:-number_of_points])]
-        out_dqang = [np.array(dqang[:-number_of_points])]
+        out_dqang = [np.array(dqang[:-number_of_points_diff])]
 
         # quaternions
         # out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
@@ -459,7 +460,7 @@ for trial in range(len(training_lower_time_table)):
             for i in range(1, number_of_points):
                 # joint angle
                 out_qang = np.append(out_qang, [np.array(qang[i:-number_of_points + i])], 0)
-                out_dqang = np.append(out_dqang, [np.array(dqang[i:-number_of_points + i])], 0)
+                out_dqang = np.append(out_dqang, [np.array(dqang[i:-number_of_points_diff + i])], 0)
 
                 # quaternions
                 # out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
@@ -526,38 +527,41 @@ for trial in range(len(training_lower_time_table)):
         classifier = LinearDiscriminantAnalysis()
         classifier.fit(X, y)
         save_to_file([X, y, out])
+        print('Learning complete')
 
         # Predictions
+        print('Calculating predictions')
         predicted_values = classifier.predict(out)
         predicted_values = medfilt(predicted_values, filter_size)
+        print('Predictions calculated')
 
 
         # Evaluation
-        print('Evaluating...')
-        evaluated_buttons_timestamp = []
-        evaluated_buttons_values = []
-        evaluated_predicted_time = []
-        evaluated_predicted_values = []
-        for i in range(len(buttons_timestamp)):
-            if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
-                evaluated_buttons_timestamp.append(buttons_timestamp[i])
-                evaluated_buttons_values.append(buttons_values[i])
-        for i in range(len(t) - filter_size - 1):
-            if testing_lower_time < t[i] < testing_upper_time:
-                evaluated_predicted_time.append(t[i + filter_size])
-                evaluated_predicted_values.append(predicted_values[i])
-
-        [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
-                                                                             evaluated_buttons_values)
-        [predicted_transitions_times, predicted_transitions_values] = find_transitions(evaluated_predicted_time,
-                                                                                       evaluated_predicted_values)
-
-        [performance, error, false_transitions, false_predicted_time, false_predicted_values] = calculate_performance(real_transitions_times,
-                                                     real_transitions_values,
-                                                     predicted_transitions_times,
-                                                     predicted_transitions_values,
-                                                     tolerance)
-        total_error[int(tolerance * 10)-1].append(error)
+        # print('Evaluating...')
+        # evaluated_buttons_timestamp = []
+        # evaluated_buttons_values = []
+        # evaluated_predicted_time = []
+        # evaluated_predicted_values = []
+        # for i in range(len(buttons_timestamp)):
+        #     if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
+        #         evaluated_buttons_timestamp.append(buttons_timestamp[i])
+        #         evaluated_buttons_values.append(buttons_values[i])
+        # for i in range(len(t) - filter_size - 1):
+        #     if testing_lower_time < t[i] < testing_upper_time:
+        #         evaluated_predicted_time.append(t[i + filter_size])
+        #         evaluated_predicted_values.append(predicted_values[i])
+        #
+        # [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
+        #                                                                      evaluated_buttons_values)
+        # [predicted_transitions_times, predicted_transitions_values] = find_transitions(evaluated_predicted_time,
+        #                                                                                evaluated_predicted_values)
+        #
+        # [performance, error, false_transitions, false_predicted_time, false_predicted_values] = calculate_performance(real_transitions_times,
+        #                                              real_transitions_values,
+        #                                              predicted_transitions_times,
+        #                                              predicted_transitions_values,
+        #                                              tolerance)
+        # total_error[int(tolerance * 10)-1].append(error)
         # plt.figure()
         # plt.hist(error, bins=10)
         # plt.title('Time frame: {}s-{}s. Tolerance: {}s.'.format(training_lower_time, testing_upper_time, tolerance))
@@ -568,7 +572,7 @@ for trial in range(len(training_lower_time_table)):
         # and not only on transitions
         performance = 0
         total = 0
-        for i in range(1, len(t) - filter_size - 1):
+        for i in range(1, len(t) - number_of_points):
             if testing_lower_time < t[i] < testing_upper_time:
                 if predicted_values[i] == classification0[i]:
                     performance += 1
@@ -585,7 +589,7 @@ for trial in range(len(training_lower_time_table)):
 
             plt.figure()
             # print('IMU 2: {}'.format(imus[2].id))
-            plt.step(buttons_timestamp, buttons_values, 'k', label='buttons')
+            plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
             # plt.plot(imus[1].timestamp, imus[1].euler_x, 'b-')
             # plt.plot(imus[1].timestamp, imus[1].euler_y, 'b:')
             # plt.plot(imus[1].timestamp, imus[1].euler_z, 'b--')
@@ -731,4 +735,4 @@ for trial in range(len(training_lower_time_table)):
 #     plt.title('Total error for tolerance = {}s'.format((i + 1) / 10))
 #     plt.savefig('total_error_hist_tolerance_{}s.svg'.format((i + 1) / 10))
 
-plt.show()
+# plt.show()
