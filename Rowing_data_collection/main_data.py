@@ -24,6 +24,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyquaternion import Quaternion
 
+import json
 
 real_time_plot = True
 
@@ -139,7 +140,7 @@ def calculate_distance(q0, q1):
     return new_angle
 
 
-def do_stuff(client, source, t, ang, fes, start_time, running):
+def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
 
     def save_data():
         now = datetime.datetime.now()
@@ -204,6 +205,8 @@ def do_stuff(client, source, t, ang, fes, start_time, running):
             data = client.recv()
             if not data == '':
                 server_data.append([time.time(), data])
+                data.append('|')
+                imu_data[data[1]] = data[:]
                 print('received stim data')
                 if real_time_plot:
                     update_plot()
@@ -271,7 +274,7 @@ def do_stuff_socket(client, source, x, channel):
         f.close()
 
 
-def server(address, port, t, ang, fes, start_time, running):
+def server(address, port, t, ang, fes, start_time, running, imu_data):
     serv = Listener((address, port))
     # s = socket.socket()
     # s.bind(address)
@@ -283,7 +286,7 @@ def server(address, port, t, ang, fes, start_time, running):
         print('Connected to {}'.format(serv.last_accepted))
         source = client.recv()
         print('Source: {}'.format(source))
-        p = multiprocessing.Process(target=do_stuff, args=(client, source, t, ang, fes, start_time, running))
+        p = multiprocessing.Process(target=do_stuff, args=(client, source, t, ang, fes, start_time, running, imu_data))
         # do_stuff(client, addr)
         p.start()
 
@@ -311,9 +314,45 @@ def socket_server(address, port, x, channel):
         # do_stuff(client, addr)
         p.start()
 
+def vr_server(address, port, imu_data):
+    # global imu_data
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((address, port))
+    s.listen()
+    conn, addr = s.accept()
+    if s:
+            print('Connected to {}'.format(addr))
+            source = str(conn.recv(4096))[2:-1]
+            if len(source) > 4:
+                source = 'VR'
+            print('Source: {}'.format(source))
+    while True:
+        # print('Connection attempt')
+        receiveTime = str(conn.recv(4096))[2:-1]
+        # print('Connection attempt 1')
+        # time.sleep(1/720)
+        # print('Connection attempt 2')
+        if s:
+            # imu_data.append([time.time(), imu_data])
+            # print('Sent message: {}'.format(list(imu_data)))
+            # imu_data[:] = [float(receiveTime), imu_data[:]]
+            imu_data['velocity'] = '1.0|' # TODO: real value goes here
+            out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
+            conn.send(out_data.encode())
+            # del imu_data[:]
+            # print(out_data)
+        else:
+            print('Disconnected from {}'.format(addr))
+            break
+
+manager = multiprocessing.Manager()
+imu_data = manager.dict()
+# imu_json = multiprocessing.Value()
 
 if __name__ == '__main__':
-    mserver = multiprocessing.Process(target=server, args=('', 50001, t, ang, fes, start_time, running))
+    # mserver = multiprocessing.Process(target=server, args=('', 50001, imu_data))
+    mserver = multiprocessing.Process(target=server, args=('', 50001, t, ang, fes, start_time, running, imu_data))
     # mserver = threading.Thread(target=server, args=(('', 50001),))
     running.value = 1
     mserver.start()
@@ -322,6 +361,12 @@ if __name__ == '__main__':
     # sserver.start()
     # sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
     # sserver2.start()
+    # sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x, 1))
+    # sserver.start()
+    # sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
+    # sserver2.start()
+    sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
+    sserver3.start()
     # server(('', 50000))
 
     if real_time_plot:
