@@ -227,7 +227,7 @@ def vr_server(address, port, imu_data):
             # imu_data.append([time.time(), imu_data])
             # print('Sent message: {}'.format(list(imu_data)))
             # imu_data[:] = [float(receiveTime), imu_data[:]]
-            imu_data['velocity'] = '1.0|'
+            imu_data['velocity'] = '1.0|' # TODO: real value goes here
             out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
             conn.send(out_data.encode())
             # del imu_data[:]
