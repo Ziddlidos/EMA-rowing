@@ -20,6 +20,7 @@ import struct
 import math
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
+import json
 
 # TODO include ctrl+C catching in all scripts
 
@@ -66,8 +67,6 @@ if real_time_plot:
     timer.timeout.connect(update)
     timer.start(15)
 
-# imu_data = []
-
 def on_exit(sig, frame):
     # global imu_data
     # print(imu_data)
@@ -79,7 +78,8 @@ def on_exit(sig, frame):
     print('Good bye')
     sys.exit(0)
 
-def do_stuff(client, source):
+def do_stuff(client, source, imu_data):
+    # global imu_data
     server_data = []
     # signal.signal(signal.SIGINT, on_exit)
     # now = time.time()
@@ -92,13 +92,17 @@ def do_stuff(client, source):
             if not data == '':
                 # print(data)
                 server_data.append([time.time(), data])
+                data.append('|')
+                imu_data[data[1]] = data[:]
+                # print('Imu receiving: {}'.format(list(imu_data)))
+				# imu_json.value = 
                 # print(imu_data)
-                # print(source, data)
+				# print(source, data)
                 # time.sleep(1)
             # print(1/(time.time()-now))
             # now = time.time()
     except Exception as e:
-        print('Exception raised: ', str(e))
+        print('Exception raised: ', str(sys.exc_info()[2].tb_lineno), str(e))
         print('Connection  to {} closed'.format(source))
         now = datetime.datetime.now()
         filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'
@@ -163,7 +167,7 @@ def do_stuff_socket(client, source, x, channel):
         [f.write(str(i)[1:-1].replace('[','').replace(']','')+'\r\n') for i in server_data]
         f.close()
 
-def server(address, port):
+def server(address, port, imu_data):
     serv = Listener((address, port))
     # s = socket.socket()
     # s.bind(address)
@@ -174,7 +178,7 @@ def server(address, port):
         print('Connected to {}'.format(serv.last_accepted))
         source = client.recv()
         print('Source: {}'.format(source))
-        p = multiprocessing.Process(target=do_stuff, args=(client, source))
+        p = multiprocessing.Process(target=do_stuff, args=(client, source, imu_data))
         # do_stuff(client, addr)
         p.start()
 
@@ -199,17 +203,64 @@ def socket_server(address, port, x, channel):
         p = multiprocessing.Process(target=do_stuff_socket, args=(conn, source, x, channel))
         # do_stuff(client, addr)
         p.start()
+		
+def vr_server(address, port, imu_data):
+    # global imu_data
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind((address, port))
+    s.listen()
+    conn, addr = s.accept()
+    if s:
+            print('Connected to {}'.format(addr))
+            source = str(conn.recv(4096))[2:-1]
+            if len(source) > 4:
+                source = 'VR'
+            print('Source: {}'.format(source))
+    while True:
+        # print('Connection attempt')
+        receiveTime = str(conn.recv(4096))[2:-1]
+        # print('Connection attempt 1')
+        # time.sleep(1/720)
+        # print('Connection attempt 2')
+        if s:
+            # imu_data.append([time.time(), imu_data])
+            # print('Sent message: {}'.format(list(imu_data)))
+            # imu_data[:] = [float(receiveTime), imu_data[:]]
+            imu_data['velocity'] = '1.0|'
+            out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
+            conn.send(out_data.encode())
+            # del imu_data[:]
+            # print(out_data)
+        else:
+            print('Disconnected from {}'.format(addr))
+            break
 
+manager = multiprocessing.Manager()
+imu_data = manager.dict()
+# imu_json = multiprocessing.Value()
 
 if __name__ == '__main__':
-    mserver = multiprocessing.Process(target=server, args=('', 50001))
+    mserver = multiprocessing.Process(target=server, args=('', 50001, imu_data))
     # mserver = threading.Thread(target=server, args=(('', 50001),))
     mserver.start()
     sserver = multiprocessing.Process(target=socket_server, args=('', 50002, x, 1))
     sserver.start()
     sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
     sserver2.start()
+    sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
+    sserver3.start()
     # server(('', 50000))
     if real_time_plot:
         if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
             QtGui.QApplication.instance().exec_()
+    
+    print('Before join')
+    mserver.join()
+    print('After mserver')
+    sserver.join()
+    print('After sserver')
+    sserver2.join()
+    print('After sserver2')
+    sserver3.join()
+    print('End')
