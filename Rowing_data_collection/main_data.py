@@ -39,10 +39,6 @@ if real_time_plot:
 
     imu1_id = 4
     imu2_id = 3
-
-
-
-
     for i in range(size_of_graph):
         t[i] = 0
         ang[i] = 0
@@ -184,7 +180,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
 
 
         elif source == 'stim':
-            print('update stim')
+            # print('update stim')
             stim_state = data[1]
             state = 0
             if stim_state == 'stop':

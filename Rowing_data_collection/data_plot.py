@@ -34,9 +34,9 @@ from pyquaternion import Quaternion
 normal_plot = True
 dash_plot = False
 
-number_of_points = 1
+number_of_points = 50
 number_of_points_diff = number_of_points
-filter_size = 29
+filter_size = 49
 
 imu_forearm_id = 4
 imu_arm_id = 3
@@ -45,8 +45,8 @@ imu_0 = 0
 # imu_1 = 2
 imu_1 = 1
 
-initial_time = 5
-total_time = 30
+initial_time = 60
+total_time = 180
 
 # sys.stdout = open('Data/results.txt', 'w')
 
