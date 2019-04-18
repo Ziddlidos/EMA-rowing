@@ -32,7 +32,16 @@ except:
 addresses = [1,2,3,4,5,6,7,8]
 
 # Command the IMUs are to perform
-command = 0
+command = [255, 255, 255, 255, 255, 255, 255, 255]
+command[0] = 0
+command[1] = 41
+command[2] = 255
+command[3] = 255
+command[4] = 255
+command[5] = 255
+command[6] = 255
+command[7] = 255
+
 
 # Find and open serial port for the IMU dongle
 a = serial.tools.list_ports.comports()
@@ -65,7 +74,14 @@ while not serial_port.inWaiting() == 0:
 print('Starting configuration')
 # Set streaming slots
 for i in range(len(addresses)):
-    msg = '>'+str(addresses[i])+',80,'+str(command)+',255,255,255,255,255,255,255\n'
+    msg = '>' + str(addresses[i]) + ',80,' + str(command[0]) + ',' + \
+                                             str(command[1]) + ',' + \
+                                             str(command[2]) + ',' + \
+                                             str(command[3]) + ',' + \
+                                             str(command[4]) + ',' + \
+                                             str(command[5]) + ',' + \
+                                             str(command[6]) + ',' + \
+                                             str(command[7]) + '\n'
     print(msg)
     serial_port.write(msg.encode())
     time.sleep(0.1)
@@ -83,11 +99,11 @@ for i in range(len(addresses)):
         out = '>> ' + serial_port.read(serial_port.inWaiting()).decode()
 
 # Gyro autocalibration
-# for i in range(len(addresses)):
-#     serial_port.write(('>'+str(addresses[i])+',165\n').encode())
-#     time.sleep(0.1)
-#     while serial_port.inWaiting():
-#         out = '>> ' + serial_port.read(serial_port.inWaiting()).decode()
+for i in range(len(addresses)):
+    serial_port.write(('>'+str(addresses[i])+',165\n').encode())
+    time.sleep(0.1)
+    while serial_port.inWaiting():
+        out = '>> ' + serial_port.read(serial_port.inWaiting()).decode()
 
 # Tare
 for i in range(len(addresses)):
@@ -121,34 +137,56 @@ def read_sensors(portIMU):
             if bytes_to_read > 0:
                 # print('reading...')
                 data = serial_port.read(bytes_to_read)
-
+                # print('Full raw data: ' + str(data))
+                # print(data[0])
+                if len(data) <= 3 or data[0] != 0:
+                    continue
                 data2 = data.decode().replace('\r\n',' ')
                 # data2 = ''.join(chr(i) for i in data.encode() if ord(chr(i)) > 31 and ord(chr(i)) < 128 )
                 data3 = data2.split(' ')
                 data3 = list(filter(None, data3))
                 # print(data3)
 
-                temp = data3[-1]  # Get latest message and ignore others
-                # print(temp[1].encode())
-                id = int.from_bytes(temp[1].encode(), sys.byteorder)
-                # print(id)
-                temp = temp[3:]  # Remove undesired first 3 bytes
-                temp = temp.split(',')
-                temp = np.array(temp).astype(np.float)
-                if len(temp) == 4:
-                    x = temp[0]
-                    y = temp[1]
-                    z = temp[2]
-                    w = temp[3]
-                else:
-                    continue
+                info = data3[0][0:3]
 
-                # id = data[1]
-                out = [time.time(), id, w, x, y, z]
+                id = int.from_bytes(info[1].encode(), sys.byteorder)
+
+                ################################################################
+                ################################################################
+                # get data
+                quaternion = data3[0][3:]
+                accel = data3[1]
+                # id = int.from_bytes(temp[1].encode(), sys.byteorder)
+                # print('Final data: ' + str(temp))
+                # print('Quaternion: ' + str(quaternion))
+                # print('Accel: ' + str(accel))
+                # print(temp[1].encode())
+                # print(id)
+                # print(quaternion)
+
+                quaternion = quaternion.split(',')
+                quaternion = np.array(quaternion).astype(np.float)
+
+                accel = accel.split(',')
+                accel = np.array(accel).astype(np.float)
+
+
+                x = quaternion[0]
+                y = quaternion[1]
+                z = quaternion[2]
+                w = quaternion[3]
+                acc_x = accel[0]
+                acc_y = accel[1]
+                acc_z = accel[2]
+
+                ################################################################
+                ################################################################
+
+
+                # Send data to server
+                out = [time.time(), id, w, x, y, z, acc_x, acc_y, acc_z]
                 if connection:
                     server.send(out)
-                # print(out)
-                # print(1/(time.time()-now))
                 now = time.time()
 
             else:
@@ -158,6 +196,7 @@ def read_sensors(portIMU):
 
 
     except Exception as e:
+
         print('Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
         # Stop streaming
         for i in range(len(addresses)):

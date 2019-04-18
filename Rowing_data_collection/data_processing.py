@@ -48,6 +48,9 @@ class IMU:
         self.euler_x = []
         self.euler_y = []
         self.euler_z = []
+        self.acc_x = []
+        self.acc_y = []
+        self.acc_z = []
 
     def get_euler_angles(self):
         for i in range(len(self.timestamp)):
@@ -129,6 +132,9 @@ def parse_imus_file(filename, starting_time):
         imus[imus_ids.index(id)].y_values.append(float(data[4]))
         imus[imus_ids.index(id)].z_values.append(float(data[5]))
         imus[imus_ids.index(id)].w_values.append(float(data[6]))
+        imus[imus_ids.index(id)].acc_x.append(float(data[7]))
+        imus[imus_ids.index(id)].acc_y.append(float(data[8]))
+        imus[imus_ids.index(id)].acc_z.append(float(data[9]))
 
     [imus[i].get_euler_angles() for i in range(len(imus))]
 
@@ -207,3 +213,10 @@ def resample_series(x1, y1, x2, y2, crop=0):
         y_1 = y_1[crop:-crop]
         y_2 = y_2[crop:-crop]
     return [x, y_1, y_2]
+
+
+def div_filter(data, factor):
+    out = []
+    for i in range(0, len(data), factor):
+        out.append(data[i])
+    return out

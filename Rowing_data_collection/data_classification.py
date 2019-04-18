@@ -37,7 +37,9 @@ def classify_by_buttons(buttons_timestamp, buttons_values, vector_timestamp, vec
         else:
             if position < last_position:
                 position += 1
-                while buttons_timestamp[position-1] == buttons_timestamp[position]:
+                # while buttons_timestamp[position-1] == buttons_timestamp[position]:
+                #     position += 1
+                while buttons_values[position-1] == buttons_values[position]:
                     position += 1
                 classification = buttons_values[position]
                 this_class = Cdata(classification)

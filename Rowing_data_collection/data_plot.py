@@ -18,7 +18,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from data_processing import GetFilesToLoad, resample_series, IMU
+from data_processing import GetFilesToLoad, resample_series, IMU, div_filter
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -29,14 +29,16 @@ import logging
 # import quaternion
 import math
 from pyquaternion import Quaternion
+from mpl_toolkits.mplot3d import Axes3D
 
 
 normal_plot = True
 dash_plot = False
 
-number_of_points = 50
-number_of_points_diff = number_of_points
-filter_size = 49
+number_of_points = 3
+# number_of_points_diff = number_of_points
+# filter_size = 49
+confidence_level = 0.7
 
 imu_forearm_id = 4
 imu_arm_id = 3
@@ -46,18 +48,27 @@ imu_0 = 0
 imu_1 = 1
 
 initial_time = 60
-total_time = 180
+total_time = 110
+
+
+###############################################################################################
+###############################################################################################
+
+# Data load
+
+###############################################################################################
+###############################################################################################
 
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-app = QApplication(sys.argv)
-source_file = GetFilesToLoad()
-app.processEvents()
-filename = source_file.filename[0][0]
+# app = QApplication(sys.argv)
+# source_file = GetFilesToLoad()
+# app.processEvents()
+# filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
-# filename = 'breno_2.out'
+filename = 'Data/breno_1604_02.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -103,6 +114,8 @@ print('Resampling and synchronizing...')
                                                                         imus[imu_0].w_values,
                                                                         imus[imu_1].timestamp,
                                                                         imus[imu_1].w_values)
+
+
 print('Resampling done')
 
 
@@ -128,6 +141,7 @@ qy = []
 qz = []
 qw = []
 qang = []
+dqang = []
 
 def angle(q):
     try:
@@ -151,27 +165,201 @@ for quat in q:
     qz.append(quat.elements[3])
     qang.append(angle(quat))
 
+for i in range(1, len(qang)):
+    dqang.append( (qang[i] - qang[i-1]) / (t[i] - t[i-1]) )
 
-fig1, ax1 = plt.subplots()
-ax1.plot(t, qx, label='x')
-ax1.plot(t, qy, label='y')
-ax1.plot(t, qz, label='z')
-ax1.plot(t, qw, label='w')
+[t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
+                                                                    qang,
+                                                                    buttons_timestamp,
+                                                                    buttons_values)
+
+dqang_resampled = []
+for i in range(1, len(qang_resampled)):
+    dqang_resampled.append( (qang_resampled[i] - qang_resampled[i-1]) / (t_ang[i] - t_ang[i-1]) )
+
+
+# sys.exit()
+
+###############################################################################################
+###############################################################################################
+
+# Aux data calculation
+
+###############################################################################################
+###############################################################################################
+
+[qang_low, qang_zero, qang_up] = classify_by_buttons(buttons_timestamp, buttons_values, t, qang)
+[dqang_low, dqang_zero, dqang_up] = classify_by_buttons(buttons_timestamp, buttons_values, t[1:], dqang)
+
+qang_avg_low = []
+dqang_last_low = []
+qang_avg_low_timestamp = []
+dqang_last_low_timestamp = []
+
+qang_avg_zero = []
+dqang_last_zero= []
+qang_avg_zero_timestamp = []
+dqang_last_zero_timestamp = []
+
+qang_avg_up = []
+dqang_last_up = []
+qang_avg_up_timestamp = []
+dqang_last_up_timestamp = []
+
+
+for i in range(len(qang_low)):
+    if len(qang_low[i].values) > 0:
+        qang_avg_low.append(np.mean(qang_low[i].values))
+        qang_avg_low_timestamp.append(qang_low[i].timestamp[-1])
+for i in range(len(qang_zero)):
+    if len(qang_zero[i].values) > 0:
+        qang_avg_zero.append(np.mean(qang_zero[i].values))
+        qang_avg_zero_timestamp.append(qang_zero[i].timestamp[-1])
+for i in range(len(qang_up)):
+    if len(qang_up[i].values) > 0:
+        qang_avg_up.append(np.mean(qang_up[i].values))
+        qang_avg_up_timestamp.append(qang_up[i].timestamp[-1])
+for i in range(len(dqang_low)):
+    if len(dqang_low[i].values) > 0:
+        dqang_last_low.append(dqang_low[i].values[-1])
+        dqang_last_low_timestamp.append(dqang_low[i].timestamp[-1])
+for i in range(len(dqang_zero)):
+    if len(dqang_zero[i].values) > 0:
+        dqang_last_zero.append(dqang_zero[i].values[-1])
+        dqang_last_zero_timestamp.append(dqang_zero[i].timestamp[-1])
+for i in range(len(dqang_up)):
+    if len(dqang_up[i].values) > 0:
+        dqang_last_up.append(dqang_up[i].values[-1])
+        dqang_last_up_timestamp.append(dqang_up[i].timestamp[-1])
+
+
+
+
+
+###############################################################################################
+###############################################################################################
+
+# Data plot
+
+###############################################################################################
+###############################################################################################
+
+# fig1, ax1 = plt.subplots()
+# plt.title('Quaternions')
+# ax1.plot(t, qx, label='x')
+# ax1.plot(t, qy, label='y')
+# ax1.plot(t, qz, label='z')
+# ax1.plot(t, qw, label='w')
+# plt.legend()
+# ax2 = ax1.twinx()
+# ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+# plt.legend()
+
+
+fig2, (ax3, ax5) = plt.subplots(2, 1)
+fig2.canvas.set_window_title('Angle')
+ax3.plot(t, qang, label='Ang', color='dodgerblue')
+plt.title('Angles')
 plt.legend()
-ax2 = ax1.twinx()
-ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+ax4 = ax3.twinx()
+ax4.plot(buttons_timestamp, buttons_values, 'k', label='FES')
 plt.legend()
 
-fig, ax1 = plt.subplots()
-ax1.plot(t, qang, label='Ang', color='dodgerblue')
-# ax1.xaxis([0, 90])
+# fig3, ax5 = plt.subplots()
+
+ax5.plot(t[101:-100], dqang[100:-100], label='Ang', color='dodgerblue')
+plt.title('Angle diff')
 plt.legend()
-ax2 = ax1.twinx()
-ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+ax6 = ax5.twinx()
+ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
 plt.legend()
+
+# fig3 = plt.figure()
+# plt.plot(qang_resampled, buttons_values_resampled, '.')
+
+factor = 100
+qang_short = div_filter(qang_resampled[1:], factor)
+dqang_short = div_filter(dqang_resampled, factor)
+buttons_values_short = div_filter(buttons_values_resampled[1:], factor)
+
+
+
+fig3d = plt.figure('3D plot')
+plt.title('Angle x Diff x FES')
+ax3d = fig3d.add_subplot(111, projection='3d')
+ax3d.scatter(qang_short, dqang_short, buttons_values_short)
+ax3d.set_xlabel('Angle')
+ax3d.set_ylabel('Diff')
+ax3d.set_zlabel('FES')
+ax3d.set_ylim3d(-500,500)
+
+# fig4 = plt.figure()
+# plt.title('Angle x Diff')
+# [plt.plot(i.values[-len(j.values):], j.values, 'b.', label='Flexion') for i, j in zip(qang_low[1:], dqang_low[1:])]
+# [plt.plot(i.values[-len(j.values):], j.values, 'k.', label='Stop') for i, j in zip(qang_zero[1:], dqang_zero[1:])]
+# [plt.plot(i.values[-len(j.values):], j.values, 'r.', label='Extension') for i, j in zip(qang_up[1:], dqang_up[1:])]
+# plt.plot(qang_low, dqang_low, '.b')
+# plt.plot()
+# plt.ylim(-5000, 5000)
+
+div_factor = 3
+plt.figure('Learning data')
+plt.title('Low - Zero - Up')
+# plt.title('Low / {}'.format(div_factor))
+[plt.plot(i.timestamp, i.values, 'b') for i in qang_low[1:round(len(qang_low)/div_factor)]]
+# plt.figure()
+# plt.title('Zero / {}'.format(div_factor))
+[plt.plot(i.timestamp, i.values, 'k') for i in qang_zero[1:round(len(qang_zero)/div_factor)]]
+# plt.figure()
+# plt.title('Up / {}'.format(div_factor))
+[plt.plot(i.timestamp, i.values, 'r') for i in qang_up[1:round(len(qang_up)/div_factor)]]
+
+plt.figure('Angle average')
+plt.title('Time x feature')
+plt.plot(qang_avg_low_timestamp, qang_avg_low, 'b.', label='low')
+plt.plot(qang_avg_zero_timestamp, qang_avg_zero, 'k.', label='zero')
+plt.plot(qang_avg_up_timestamp, qang_avg_up, 'r.', label='up')
+plt.legend()
+
+plt.figure('Last angle diff')
+plt.title('Time x feature')
+plt.plot(dqang_last_low_timestamp, dqang_last_low, 'b*', label='low')
+plt.plot(dqang_last_zero_timestamp, dqang_last_zero, 'k*', label='zero')
+plt.plot(dqang_last_up_timestamp, dqang_last_up, 'r*', label='up')
+plt.ylim(-500, 500)
+plt.legend()
+
+
+plt.figure('Slow - Feature crossing')
+plt.title('Angle avg x diff')
+plt.plot(qang_avg_low[0:round(len(qang_low)/div_factor)], dqang_last_low[0:round(len(qang_low)/div_factor)], 'b.')
+plt.plot(qang_avg_zero[0:round(len(qang_zero)/div_factor)], dqang_last_zero[0:round(len(qang_zero)/div_factor)], 'k.')
+plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(len(qang_up)/div_factor)], 'r.')
+
+plt.figure('Normal - Feature crossing')
+plt.title('Angle avg x diff')
+plt.plot(qang_avg_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], dqang_last_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], 'b.')
+plt.plot(qang_avg_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], dqang_last_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], 'k.')
+plt.plot(qang_avg_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], dqang_last_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], 'r.')
+
+plt.figure('Fast - Feature crossing')
+plt.title('Angle avg x diff')
+plt.plot(qang_avg_low[round(len(qang_low)/div_factor):], dqang_last_low[round(len(qang_low)/div_factor):], 'b.')
+plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
+plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
 
 # plt.show()
 # quit()
+
+
+###############################################################################################
+###############################################################################################
+
+# Machine learning
+
+###############################################################################################
+###############################################################################################
+
 
 # [t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
 #                                                                             imus[2].euler_z,
@@ -333,11 +521,10 @@ def calculate_performance(real_time, real_value, predicted_time, predicted_value
     return performance, error_history, false_transitions, predicted_time, predicted_value
 
 
-def save_to_file(data):
-    with open('Data/classifier', 'wb') as f:
+def save_to_file(data, filename):
+    with open(filename, 'wb') as f:
         for piece_of_data in data:
             pickle.dump(piece_of_data, f)
-
 
 
 training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
@@ -368,16 +555,15 @@ for trial in range(len(training_lower_time_table)):
                                                                                       testing_upper_time,
                                                                                       tolerance))
         print('Learning...')
-        # TODO: different number_of_points for current points and past points
         # TODO: save these values on file
-        # TODO: think nwhat to do in the beggining, when there is not enough data
+        # TODO: think what to do in the beginning, when there is not enough data
         # Building learning data
         for i in range(number_of_points, len(t)):
             if training_lower_time < t[i] < training_upper_time:
                 this = []
                 # adding number_of_points points
                 # joint angle
-                this += [j for j in qang[i - number_of_points:i]]
+                this.append(np.mean(qang[i - number_of_points:i]))
 
                 # quaternions
                 # this += [j for j in imus[imu_0].resampled_x[i - number_of_points:i]]
@@ -399,7 +585,7 @@ for trial in range(len(training_lower_time_table)):
 
                 # adding number_of_points diff points
                 # joint angle
-                this += list(dqang[i - number_of_points_diff:i])
+                this.append(dqang[i])
 
                 # quaternions
                 # this += list(dqx0[i - number_of_points:i])
@@ -423,12 +609,18 @@ for trial in range(len(training_lower_time_table)):
 
                 y.append(classification0[i])
 
+        # Training
+        classifier = LinearDiscriminantAnalysis()
+        classifier.fit_transform(X, y)
 
+
+        print('Learning complete')
 
         # Building evaluating data
         # joint angle
-        out_qang = [np.array(qang[:-number_of_points])]
-        out_dqang = [np.array(dqang[:-number_of_points_diff])]
+        out = []
+        # out_qang = [np.mean(qang[:number_of_points])]
+        # out_dqang = [dqang[number_of_points]]
 
         # quaternions
         # out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
@@ -457,10 +649,11 @@ for trial in range(len(training_lower_time_table)):
         # out_y_0 = [np.array(imus[0].resampled_euler_y[:-number_of_points])]
         # out_y_2 = [np.array(imus[2].resampled_euler_y[:-number_of_points])]
         if number_of_points > 1:
-            for i in range(1, number_of_points):
+            for i in range(0, len(qang) - number_of_points):
                 # joint angle
-                out_qang = np.append(out_qang, [np.array(qang[i:-number_of_points + i])], 0)
-                out_dqang = np.append(out_dqang, [np.array(dqang[i:-number_of_points_diff + i])], 0)
+                out.append([np.mean(qang[i:number_of_points+i]), dqang[number_of_points+i]])
+                # out_qang = np.append(out_qang, [np.mean(qang[i:number_of_points + i])], 0)
+                # out_dqang = np.append(out_dqang, [dqang[number_of_points_diff + i]], 0)
 
                 # quaternions
                 # out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
@@ -489,7 +682,7 @@ for trial in range(len(training_lower_time_table)):
                 # out_y_2 = np.append(out_y_2, [np.array(imus[2].resampled_euler_y[i:-number_of_points + i])], 0)
 
         # joint angle
-        out = np.append(out_qang, out_dqang, 0)
+        # out = np.append(out_qang, out_dqang, 1)
 
         # quaternions
         # out = np.append(out_qx_0, out_qx_2, 0)
@@ -520,20 +713,48 @@ for trial in range(len(training_lower_time_table)):
         # out = np.append(out, [dy0[number_of_points:]], 0)
         # out = np.append(out, [dy2[number_of_points:]], 0)
 
-        out = list(out.T)
+        # out = list(out.T)
+        save_to_file([X, y, out], 'Data/classifier')
 
-
-        # Training
-        classifier = LinearDiscriminantAnalysis()
-        classifier.fit(X, y)
-        save_to_file([X, y, out])
-        print('Learning complete')
 
         # Predictions
         print('Calculating predictions')
         predicted_values = classifier.predict(out)
-        predicted_values = medfilt(predicted_values, filter_size)
+        # predicted_values = medfilt(predicted_values, filter_size)
         print('Predictions calculated')
+
+        scores = classifier.decision_function(X)
+        predicted_proba = classifier.predict_proba(out)
+        probability = [max(i) for i in predicted_proba]
+
+
+        trusted_t = []
+        trusted_predictions = []
+        trusted_classifcation = []
+        all_probabilities = [[],[],[]]
+        for i in range(len(predicted_values)):
+            this_classification = classification0[i]
+            if this_classification == -1:
+                all_probabilities[0].append(probability[i])
+            elif this_classification == 0:
+                all_probabilities[1].append(probability[i])
+            elif this_classification == 1:
+                all_probabilities[2].append(probability[i])
+            if probability[i] > confidence_level:
+                trusted_t.append(t[i + number_of_points])
+                trusted_predictions.append(predicted_values[i])
+                trusted_classifcation.append(classification0[i])
+
+        print('Probabilities: ')
+        print('-1: {} ({})'.format(np.mean(all_probabilities[0]), np.std(all_probabilities[0])))
+        print('0: {} ({})'.format(np.mean(all_probabilities[1]), np.std(all_probabilities[1])))
+        print('1: {} ({})'.format(np.mean(all_probabilities[2]), np.std(all_probabilities[2])))
+
+
+        # plt.figure('Function')
+        # plt.plot(decision)
+        # plt.figure('Probability')
+        # plt.plot(probability)
 
 
         # Evaluation
@@ -572,13 +793,21 @@ for trial in range(len(training_lower_time_table)):
         # and not only on transitions
         performance = 0
         total = 0
-        for i in range(1, len(t) - number_of_points):
-            if testing_lower_time < t[i] < testing_upper_time:
-                if predicted_values[i] == classification0[i]:
+        for i in range(len(trusted_classifcation)):
+            if testing_lower_time < trusted_t[i] < testing_upper_time:
+                if trusted_predictions[i] == trusted_classifcation[i]:
                     performance += 1
                 total += 1
         print('Performance point-by-point: {}%'.format(np.round(performance/total*100, 2)))
         print('##########################################################################################\n\n\n\n')
+
+        ###############################################################################################
+        ###############################################################################################
+
+        # Result plotting
+
+        ###############################################################################################
+        ###############################################################################################
 
 
         # Plots
@@ -605,7 +834,8 @@ for trial in range(len(training_lower_time_table)):
             # [plt.plot(packet.timestamp, packet.values, 'g.', label='Stop') for packet in zero]
             # [plt.plot(packet.timestamp, packet.values, 'r.', label='Extension') for packet in up]
             # plt.plot(t, classification0, 'c')
-            plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
+            # plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
+            plt.step(trusted_t, trusted_predictions, 'g-', where='post', label='Trusted predictions')
             # plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
             # plt.plot(imus[0].timestamp, imus[0].euler_x, 'r-')
             # plt.plot(imus[0].timestamp, imus[0].euler_y, 'r:')
