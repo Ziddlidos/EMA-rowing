@@ -40,8 +40,8 @@ number_of_points = 3
 # filter_size = 49
 confidence_level = 0.7
 
-imu_forearm_id = 4
-imu_arm_id = 3
+imu_forearm_id = 5
+imu_arm_id = 8
 
 imu_0 = 0
 # imu_1 = 2
@@ -62,13 +62,13 @@ total_time = 110
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
-filename = 'Data/breno_1604_02.out'
+# filename = 'Data/breno_1604_02.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -285,7 +285,7 @@ plt.legend()
 
 # fig3, ax5 = plt.subplots()
 
-ax5.plot(t[101:-100], dqang[100:-100], label='Ang', color='dodgerblue')
+ax5.plot(t[100:-100], dqang[100:-100], label='Ang', color='dodgerblue')
 plt.title('Angle diff')
 plt.legend()
 ax6 = ax5.twinx()
@@ -320,7 +320,7 @@ ax3d.set_ylim3d(-500,500)
 # plt.plot()
 # plt.ylim(-5000, 5000)
 
-div_factor = 3
+div_factor = 1
 plt.figure('Learning data')
 plt.title('Low - Zero - Up')
 # plt.title('Low / {}'.format(div_factor))
@@ -354,17 +354,17 @@ plt.plot(qang_avg_low[0:round(len(qang_low)/div_factor)], dqang_last_low[0:round
 plt.plot(qang_avg_zero[0:round(len(qang_zero)/div_factor)], dqang_last_zero[0:round(len(qang_zero)/div_factor)], 'k.')
 plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(len(qang_up)/div_factor)], 'r.')
 
-plt.figure('Normal - Feature crossing')
-plt.title('Angle avg x diff')
-plt.plot(qang_avg_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], dqang_last_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], 'b.')
-plt.plot(qang_avg_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], dqang_last_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], 'k.')
-plt.plot(qang_avg_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], dqang_last_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], 'r.')
+# plt.figure('Normal - Feature crossing')
+# plt.title('Angle avg x diff')
+# plt.plot(qang_avg_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], dqang_last_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], 'b.')
+# plt.plot(qang_avg_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], dqang_last_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], 'k.')
+# plt.plot(qang_avg_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], dqang_last_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], 'r.')
 
-plt.figure('Fast - Feature crossing')
-plt.title('Angle avg x diff')
-plt.plot(qang_avg_low[round(len(qang_low)/div_factor):], dqang_last_low[round(len(qang_low)/div_factor):], 'b.')
-plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
-plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
+# plt.figure('Fast - Feature crossing')
+# plt.title('Angle avg x diff')
+# plt.plot(qang_avg_low[round(len(qang_low)/div_factor):], dqang_last_low[round(len(qang_low)/div_factor):], 'b.')
+# plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
+# plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
 
 # plt.show()
 # quit()
