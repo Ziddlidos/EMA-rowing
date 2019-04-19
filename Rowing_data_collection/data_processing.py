@@ -220,3 +220,8 @@ def div_filter(data, factor):
     for i in range(0, len(data), factor):
         out.append(data[i])
     return out
+
+def calculate_accel(acc_x, acc_y, acc_z, i):
+    import numpy as np
+    out = np.sqrt(np.power(acc_x[i], 2) + np.power(acc_y[i], 2) + np.power(acc_z[i], 2))
+    return out

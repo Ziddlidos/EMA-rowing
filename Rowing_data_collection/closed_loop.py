@@ -5,7 +5,7 @@ import threading
 from multiprocessing.connection import Listener
 import time
 import datetime
-from data_processing import IMU
+from data_processing import IMU, calculate_accel
 import numpy as np
 from scipy.signal import medfilt
 from pyquaternion import Quaternion
@@ -67,17 +67,26 @@ def imu_thread(client_list):
                 y = data[3]
                 z = data[4]
                 w = data[5]
+                acc_x = data[6]
+                acc_y = data[7]
+                acc_z = data[8]
 
                 if id == imu_forearm.id:
                     imu_forearm.x_values.append(x)
                     imu_forearm.y_values.append(y)
                     imu_forearm.z_values.append(z)
                     imu_forearm.w_values.append(w)
+                    imu_forearm.acc_x.append(acc_x)
+                    imu_forearm.acc_y.append(acc_y)
+                    imu_forearm.acc_z.append(acc_z)
                 elif id == imu_arm.id:
                     imu_arm.x_values.append(x)
                     imu_arm.y_values.append(y)
                     imu_arm.z_values.append(z)
                     imu_arm.w_values.append(w)
+                    imu_arm.acc_x.append(acc_x)
+                    imu_arm.acc_y.append(acc_y)
+                    imu_arm.acc_z.append(acc_z)
 
                 # print(data[2], data[3], data[4], data[5])
                 # print(imu_data)
@@ -188,10 +197,16 @@ def control():
         if len(angles) > number_of_points:
 
 
-            out = list()
+            # out = list()
+            out = []
 
-            out = out + angles[-number_of_points:]
-            out = out + list(np.diff(angles[-number_of_points - 1:]))
+            # out = out + angles[-number_of_points:]
+            # out = out + list(np.diff(angles[-number_of_points - 1:]))
+
+            out.append([np.mean(angles[-number_of_points:]),
+                        np.diff(angles[-number_of_points:])[-1],
+                        calculate_accel(imu_forearm.acc_x, imu_forearm.acc_y, imu_forearm.acc_z, -1)
+                        ])
 
             # quaternions
             # out = out + imu_forearm.x_values[-number_of_points:]

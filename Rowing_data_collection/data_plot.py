@@ -18,7 +18,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from data_processing import GetFilesToLoad, resample_series, IMU, div_filter
+from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -114,7 +114,18 @@ print('Resampling and synchronizing...')
                                                                         imus[imu_0].w_values,
                                                                         imus[imu_1].timestamp,
                                                                         imus[imu_1].w_values)
-
+[t, imus[imu_0].resampled_acc_x, imus[imu_1].resampled_acc_x] = resample_series(imus[imu_0].timestamp,
+                                                                                imus[imu_0].acc_x,
+                                                                                imus[imu_1].timestamp,
+                                                                                imus[imu_1].acc_x)
+[t, imus[imu_0].resampled_acc_y, imus[imu_1].resampled_acc_y] = resample_series(imus[imu_0].timestamp,
+                                                                                imus[imu_0].acc_y,
+                                                                                imus[imu_1].timestamp,
+                                                                                imus[imu_1].acc_y)
+[t, imus[imu_0].resampled_acc_z, imus[imu_1].resampled_acc_z] = resample_series(imus[imu_0].timestamp,
+                                                                                imus[imu_0].acc_z,
+                                                                                imus[imu_1].timestamp,
+                                                                                imus[imu_1].acc_z)
 
 print('Resampling done')
 
@@ -142,6 +153,9 @@ qz = []
 qw = []
 qang = []
 dqang = []
+acc_x = [i for i in imus[imu_0].resampled_acc_x]
+acc_y = [i for i in imus[imu_0].resampled_acc_y]
+acc_z = [i for i in imus[imu_0].resampled_acc_z]
 
 def angle(q):
     try:
@@ -165,8 +179,12 @@ for quat in q:
     qz.append(quat.elements[3])
     qang.append(angle(quat))
 
-for i in range(1, len(qang)):
-    dqang.append( (qang[i] - qang[i-1]) / (t[i] - t[i-1]) )
+
+# for i in range(1, len(qang)):
+#     dqang.append( (qang[i] - qang[i-1]) / (t[i] - t[i-1]) )
+
+dqang = np.append([0], np.diff(qang)/np.diff(t))
+
 
 [t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
                                                                     qang,
@@ -378,7 +396,7 @@ plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(q
 
 classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values, t)
 
-dqang = np.append([0], np.diff(qang)/np.diff(t))
+
 
 # dqx0 = np.append([0], np.diff(imus[imu_0].resampled_x)/np.diff(t))
 # dqx2 = np.append([0], np.diff(imus[imu_1].resampled_x)/np.diff(t))
@@ -527,6 +545,8 @@ def save_to_file(data, filename):
             pickle.dump(piece_of_data, f)
 
 
+
+
 training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
 training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_lower_time_table # training_upper_time_table
@@ -587,6 +607,7 @@ for trial in range(len(training_lower_time_table)):
                 # joint angle
                 this.append(dqang[i])
 
+                this.append(calculate_accel(acc_x, acc_y, acc_z, i))
                 # quaternions
                 # this += list(dqx0[i - number_of_points:i])
                 # this += list(dqx2[i - number_of_points:i])
@@ -651,7 +672,10 @@ for trial in range(len(training_lower_time_table)):
         if number_of_points > 1:
             for i in range(0, len(qang) - number_of_points):
                 # joint angle
-                out.append([np.mean(qang[i:number_of_points+i]), dqang[number_of_points+i]])
+                out.append([np.mean(qang[i:number_of_points+i]),
+                            dqang[number_of_points+i],
+                            calculate_accel(acc_x, acc_y, acc_z, number_of_points+i)
+                            ])
                 # out_qang = np.append(out_qang, [np.mean(qang[i:number_of_points + i])], 0)
                 # out_dqang = np.append(out_dqang, [dqang[number_of_points_diff + i]], 0)
 
