@@ -18,7 +18,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel
+from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -35,10 +35,10 @@ from mpl_toolkits.mplot3d import Axes3D
 normal_plot = True
 dash_plot = False
 
-number_of_points = 3
+number_of_points = 5
 # number_of_points_diff = number_of_points
 # filter_size = 49
-confidence_level = 0.7
+confidence_level = 0.5
 
 imu_forearm_id = 5
 imu_arm_id = 8
@@ -62,13 +62,14 @@ total_time = 110
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-app = QApplication(sys.argv)
-source_file = GetFilesToLoad()
-app.processEvents()
-filename = source_file.filename[0][0]
+# app = QApplication(sys.argv)
+# source_file = GetFilesToLoad()
+# app.processEvents()
+# filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
+filename = 'Data/lucas_with_accel_01.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -153,9 +154,12 @@ qz = []
 qw = []
 qang = []
 dqang = []
-acc_x = [i for i in imus[imu_0].resampled_acc_x]
-acc_y = [i for i in imus[imu_0].resampled_acc_y]
-acc_z = [i for i in imus[imu_0].resampled_acc_z]
+acc_x_0 = [i for i in imus[imu_0].resampled_acc_x]
+acc_y_0 = [i for i in imus[imu_0].resampled_acc_y]
+acc_z_0 = [i for i in imus[imu_0].resampled_acc_z]
+acc_x_1 = [i for i in imus[imu_1].resampled_acc_x]
+acc_y_1 = [i for i in imus[imu_1].resampled_acc_y]
+acc_z_1 = [i for i in imus[imu_1].resampled_acc_z]
 
 def angle(q):
     try:
@@ -185,6 +189,7 @@ for quat in q:
 
 dqang = np.append([0], np.diff(qang)/np.diff(t))
 
+buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
 
 [t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
                                                                     qang,
@@ -274,26 +279,35 @@ for i in range(len(dqang_up)):
 # plt.legend()
 
 
-fig2, (ax3, ax5) = plt.subplots(2, 1)
+fig2, (ax3, ax5) = plt.subplots(2, 1, sharex=True)
 fig2.canvas.set_window_title('Angle')
+
 ax3.plot(t, qang, label='Ang', color='dodgerblue')
-plt.title('Angles')
-plt.legend()
+ax3.set_title('Angles')
+ax3.legend()
+ax3.set_ylabel('degrees')
+
 ax4 = ax3.twinx()
 ax4.plot(buttons_timestamp, buttons_values, 'k', label='FES')
-plt.legend()
+ax4.set_yticks([-1, 0, 1])
+ax4.legend()
+ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
 
-# fig3, ax5 = plt.subplots()
+ax5.plot(t, np.array(acc_x_0) + 1, 'b', label='x')
+ax5.plot(t, acc_y_0, 'b', label='y')
+ax5.plot(t, np.array(acc_z_0) - 1, 'b', label='z')
+ax5.plot(t, np.array(acc_x_1) + 1, 'g', label='x')
+ax5.plot(t, acc_y_1, 'g', label='y')
+ax5.plot(t, np.array(acc_z_1) - 1, 'g', label='z')
+ax5.set_title('Accel')
+ax5.legend()
+ax5.set_ylabel('g')
 
-# ax5.plot(t[100:-100], dqang[100:-100], label='Ang', color='dodgerblue')
-ax5.plot(t, acc_x, label='x')
-ax5.plot(t, acc_y, label='y')
-ax5.plot(t, acc_z, label='z')
-plt.title('Accel')
-plt.legend()
 ax6 = ax5.twinx()
 ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
-plt.legend()
+ax6.set_yticks([-1, 0, 1])
+ax6.legend()
+ax6.set_ylabel('Flex=-1, Off=0, Ext=1')
 
 # fig3 = plt.figure()
 # plt.plot(qang_resampled, buttons_values_resampled, '.')
@@ -305,14 +319,14 @@ buttons_values_short = div_filter(buttons_values_resampled[1:], factor)
 
 
 
-fig3d = plt.figure('3D plot')
-plt.title('Angle x Diff x FES')
-ax3d = fig3d.add_subplot(111, projection='3d')
-ax3d.scatter(qang_short, dqang_short, buttons_values_short)
-ax3d.set_xlabel('Angle')
-ax3d.set_ylabel('Diff')
-ax3d.set_zlabel('FES')
-ax3d.set_ylim3d(-500,500)
+# fig3d = plt.figure('3D plot')
+# plt.title('Angle x Diff x FES')
+# ax3d = fig3d.add_subplot(111, projection='3d')
+# ax3d.scatter(qang_short, dqang_short, buttons_values_short)
+# ax3d.set_xlabel('Angle')
+# ax3d.set_ylabel('Diff')
+# ax3d.set_zlabel('FES')
+# ax3d.set_ylim3d(-500,500)
 
 # fig4 = plt.figure()
 # plt.title('Angle x Diff')
@@ -335,12 +349,12 @@ plt.title('Low - Zero - Up')
 # plt.title('Up / {}'.format(div_factor))
 [plt.plot(i.timestamp, i.values, 'r') for i in qang_up[1:round(len(qang_up)/div_factor)]]
 
-plt.figure('Angle average')
-plt.title('Time x feature')
-plt.plot(qang_avg_low_timestamp, qang_avg_low, 'b.', label='low')
-plt.plot(qang_avg_zero_timestamp, qang_avg_zero, 'k.', label='zero')
-plt.plot(qang_avg_up_timestamp, qang_avg_up, 'r.', label='up')
-plt.legend()
+# plt.figure('Angle average')
+# plt.title('Time x feature')
+# plt.plot(qang_avg_low_timestamp, qang_avg_low, 'b.', label='low')
+# plt.plot(qang_avg_zero_timestamp, qang_avg_zero, 'k.', label='zero')
+# plt.plot(qang_avg_up_timestamp, qang_avg_up, 'r.', label='up')
+# plt.legend()
 
 plt.figure('Last angle diff')
 plt.title('Time x feature')
@@ -369,8 +383,8 @@ plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(le
 # plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
 # plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
 
-plt.show()
-quit()
+# plt.show()
+# quit()
 
 
 ###############################################################################################
@@ -610,7 +624,11 @@ for trial in range(len(training_lower_time_table)):
                 # joint angle
                 this.append(dqang[i])
 
-                this.append(calculate_accel(acc_x, acc_y, acc_z, i))
+                # this.append(calculate_accel(acc_x_0, acc_y_0, acc_z_0, i))
+                this.append(acc_z_0[i])
+                this.append(acc_z_1[i])
+                this.append(acc_y_0[i])
+                this.append(acc_y_1[i])
                 # quaternions
                 # this += list(dqx0[i - number_of_points:i])
                 # this += list(dqx2[i - number_of_points:i])
@@ -675,10 +693,18 @@ for trial in range(len(training_lower_time_table)):
         if number_of_points > 1:
             for i in range(0, len(qang) - number_of_points):
                 # joint angle
-                out.append([np.mean(qang[i:number_of_points+i]),
-                            dqang[number_of_points+i],
-                            calculate_accel(acc_x, acc_y, acc_z, number_of_points+i)
+                # out.append([np.mean(qang[i:number_of_points+i]),
+                #             dqang[number_of_points+i],
+                #             calculate_accel(acc_x, acc_y, acc_z, number_of_points+i)
+                #             ])
+                out.append([np.mean(qang[i:number_of_points + i]),
+                            dqang[number_of_points + i],
+                            acc_z_0[number_of_points + i],
+                            acc_z_1[number_of_points + i],
+                            acc_y_0[number_of_points + i],
+                            acc_y_1[number_of_points + i]
                             ])
+
                 # out_qang = np.append(out_qang, [np.mean(qang[i:number_of_points + i])], 0)
                 # out_dqang = np.append(out_dqang, [dqang[number_of_points_diff + i]], 0)
 

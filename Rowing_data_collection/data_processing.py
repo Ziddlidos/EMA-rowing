@@ -225,3 +225,14 @@ def calculate_accel(acc_x, acc_y, acc_z, i):
     import numpy as np
     out = np.sqrt(np.power(acc_x[i], 2) + np.power(acc_y[i], 2) + np.power(acc_z[i], 2))
     return out
+
+def correct_fes_input(button_timestamp, button_state):
+    wrong_descend = 0
+    for i in range(1, len(button_state)):
+        if button_state[i] == 0 and button_state[i-1] == 1:
+            wrong_descend = i
+        if button_state[i] == 1 and button_state[i-1] == 0 and wrong_descend != 0:
+            for j in range(wrong_descend, i):
+                button_state[j] = 1
+            wrong_descend = 0
+    return button_state
