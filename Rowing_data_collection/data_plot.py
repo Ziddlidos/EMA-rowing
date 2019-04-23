@@ -285,8 +285,11 @@ plt.legend()
 
 # fig3, ax5 = plt.subplots()
 
-ax5.plot(t[100:-100], dqang[100:-100], label='Ang', color='dodgerblue')
-plt.title('Angle diff')
+# ax5.plot(t[100:-100], dqang[100:-100], label='Ang', color='dodgerblue')
+ax5.plot(t, acc_x, label='x')
+ax5.plot(t, acc_y, label='y')
+ax5.plot(t, acc_z, label='z')
+plt.title('Accel')
 plt.legend()
 ax6 = ax5.twinx()
 ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
@@ -366,8 +369,8 @@ plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(le
 # plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
 # plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
 
-# plt.show()
-# quit()
+plt.show()
+quit()
 
 
 ###############################################################################################

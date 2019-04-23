@@ -2,11 +2,11 @@ import time
 from multiprocessing.connection import Client
 import os
 
-stroke_duration = 7
-drive_duration = 3
-extension_duration = 5
+stroke_duration = 4
+drive_duration = 1.5 # not used
+extension_duration = 2.5
 flexion_duration = stroke_duration - extension_duration
-total_duration = 30
+total_duration = 60
 
 connection = True
 
