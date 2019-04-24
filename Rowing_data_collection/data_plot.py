@@ -14,10 +14,6 @@ Date: Feb 25th 2019
 
 import matplotlib.pyplot as plt
 import pickle
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
-from dash.dependencies import Input, Output
 from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
@@ -26,7 +22,6 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import numpy as np
 from scipy.signal import medfilt
 import logging
-# import quaternion
 import math
 from pyquaternion import Quaternion
 from mpl_toolkits.mplot3d import Axes3D
@@ -38,7 +33,10 @@ dash_plot = False
 number_of_points = 5
 # number_of_points_diff = number_of_points
 # filter_size = 49
-confidence_level = 0.5
+confidence_level1 = 0.65
+confidence_level2 = 0.75
+confidence_level3 = 0.75
+
 
 imu_forearm_id = 5
 imu_arm_id = 8
@@ -49,6 +47,8 @@ imu_1 = 1
 
 initial_time = 60
 total_time = 110
+
+classes = [-1, 1, 0]
 
 
 ###############################################################################################
@@ -356,13 +356,13 @@ plt.title('Low - Zero - Up')
 # plt.plot(qang_avg_up_timestamp, qang_avg_up, 'r.', label='up')
 # plt.legend()
 
-plt.figure('Last angle diff')
-plt.title('Time x feature')
-plt.plot(dqang_last_low_timestamp, dqang_last_low, 'b*', label='low')
-plt.plot(dqang_last_zero_timestamp, dqang_last_zero, 'k*', label='zero')
-plt.plot(dqang_last_up_timestamp, dqang_last_up, 'r*', label='up')
-plt.ylim(-500, 500)
-plt.legend()
+# plt.figure('Last angle diff')
+# plt.title('Time x feature')
+# plt.plot(dqang_last_low_timestamp, dqang_last_low, 'b*', label='low')
+# plt.plot(dqang_last_zero_timestamp, dqang_last_zero, 'k*', label='zero')
+# plt.plot(dqang_last_up_timestamp, dqang_last_up, 'r*', label='up')
+# plt.ylim(-500, 500)
+# plt.legend()
 
 
 plt.figure('Slow - Feature crossing')
@@ -432,130 +432,6 @@ classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values
 # dy2 = np.append([0], np.diff(imus[2].resampled_euler_y)/np.diff(t))
 
 
-def find_transitions(timestamp, values):
-    transitions_times = []
-    transitions_values = []
-    for i in range(1, len(timestamp)):
-        if values[i] != values[i-1]:
-            transitions_times.append(timestamp[i])
-            transitions_values.append(values[i])
-    return transitions_times, transitions_values
-
-# This method calculates how many predicted transitions were correct within a tolerance to real transitions
-def calculate_performance(real_time, real_value, predicted_time, predicted_value, tolerance):
-    original_real_time = real_time.copy()
-    original_real_value = real_value.copy()
-    original_predicted_times = predicted_time.copy()
-    original_predicted_values = predicted_value.copy()
-    hits = 0
-    error_history = []
-    total_real_transitions = len(real_time)
-    total_predicted_transitions = len(predicted_time)
-    false_transitions = 0
-    found_transitions_times = []
-    found_transitions_values = []
-    false_transitions_times = []
-    false_transitions_values = []
-    wrong_transitions_times = []
-    wrong_transitions_values = []
-    wrong_transitions = 0
-    try:
-        transition_counter = 0
-        while len(real_time) > 0:
-            # current_transition_value = predicted_value[transition_counter]
-            # current_transition_time = predicted_time[transition_counter]
-            # transition_idx = np.abs(np.asarray(real_time) - current_transition_time).argmin()
-            predicted_transition_idx = np.abs(np.asarray(predicted_time) - real_time[0]).argmin()
-            current_transition_value = predicted_value[predicted_transition_idx]
-            current_transition_time = predicted_time[predicted_transition_idx]
-            error = np.abs(real_time[0] - current_transition_time)
-            # error_history.append(error)
-            if error < tolerance and current_transition_value == real_value[0]:
-                hits += 1
-                found_transitions_times.append(current_transition_time)
-                found_transitions_values.append(current_transition_value)
-                del predicted_value[predicted_transition_idx]
-                del predicted_time[predicted_transition_idx]
-                del real_value[0]
-                del real_time[0]
-                # del error_history[-1]
-                # continue
-            # elif transition_counter >= 1 and len(error_history) >= 2:
-            #     if current_transition_value == predicted_value[transition_counter - 2] \
-            #             and np.abs(current_transition_time - predicted_time[transition_counter - 1]) < tolerance:
-            #         false_transitions += 1
-            #         false_transitions_times.append(predicted_time[transition_counter-1])
-            #         false_transitions_times.append(current_transition_time)
-            #         false_transitions_values.append(predicted_value[transition_counter-1])
-            #         false_transitions_values.append(current_transition_value)
-            #         del error_history[-1]
-            #         del error_history[-2]
-            #         del predicted_time[-1]
-            #         del predicted_time[-2]
-            #         del predicted_value[-1]
-            #         del predicted_value[-2]
-            #         wrong_transitions -= 1
-            #         continue
-            #     else:
-            #         wrong_transitions += 1
-            #         wrong_transitions_times.append(current_transition_time)
-            #         wrong_transitions_values.append(current_transition_value)
-            else:
-                wrong_transitions += 1
-                wrong_transitions_times.append(current_transition_time)
-                wrong_transitions_values.append(current_transition_value)
-                del real_time[0]
-                del real_value[0]
-                error_history.append(error)
-            transition_counter += 1
-    except Exception as e:
-        print('Finished calculating performance after analysing {} transitions'.format(transition_counter))
-
-
-    # false_transitions = total_predicted_transitions - total_real_transitions
-    # false_prediction_time = []
-    # false_prediction_value = []
-    # for i in range(false_transitions):
-    #     idx = np.asarray(error_history).argmax()
-    #     false_prediction_time.append(predicted_time[idx])
-    #     false_prediction_value.append(predicted_value[idx])
-    #     del error_history[idx]
-
-    # if total_real_transitions > total_predicted_transitions:
-    #     performance = round(hits/total_real_transitions*100, 2)
-    # else:
-    #     performance = round(hits / total_predicted_transitions * 100, 2)
-
-    # print('False predicted times: {}'.format(false_prediction_time))
-    # print('False predicted values: {}'.format(false_prediction_value))
-
-    performance = round(hits / total_real_transitions * 100, 2)
-    print('Total real transitions: {}'.format(total_real_transitions))
-    # print(real_time)
-    # print(real_value)
-    # print(original_real_time)
-    # print(original_real_value)
-    print('Total predicted transitions: {}'.format(total_predicted_transitions))
-    # print(predicted_time)
-    # print(predicted_value)
-    # print(original_predicted_times)
-    # print(original_predicted_values)
-    print('Total hits: {}'.format(hits))
-    # print(found_transitions_times)
-    # print(found_transitions_values)
-    # print('Tolerated false Transitions: {}'.format(false_transitions))
-    # print(false_transitions_times)
-    # print(false_transitions_values)
-    print('Wrong transitions: {}'.format(wrong_transitions))
-    # print(wrong_transitions_times)
-    # print(wrong_transitions_values)
-    print('False transitions: {}'.format(total_predicted_transitions - hits - wrong_transitions))
-    print('Performance by transitions: {}%'.format(performance))
-    print('Mean error: {}s'.format(round(np.mean(error_history), 2)))
-    # print(error_history)
-    return performance, error_history, false_transitions, predicted_time, predicted_value
-
-
 def save_to_file(data, filename):
     with open(filename, 'wb') as f:
         for piece_of_data in data:
@@ -568,449 +444,393 @@ training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
 training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_lower_time_table # training_upper_time_table
 testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
-tolerance_table = [0.3] # [0.1, 0.2, 0.3, 0.4, 0.5]
-# training_lower_time_table = [500, 600]
-# training_upper_time_table = [575, 675]
-# testing_lower_time_table = training_upper_time_table
-# testing_upper_time_table = [600, 700]
-# tolerance_table = [0.3, 0.4, 0.5]
-total_error = [[], [], [], [], []]
-
-print('\n\n\n')
-for trial in range(len(training_lower_time_table)):
-
-    X = []
-    y = []
-    training_lower_time = training_lower_time_table[trial]
-    training_upper_time = training_upper_time_table[trial]
-    testing_lower_time = testing_lower_time_table[trial]
-    testing_upper_time = testing_upper_time_table[trial]
-
-    for tolerance in tolerance_table:
-
-        print('Starting analysis for time frame {}s-{}s with tolerance of {}s'.format(training_lower_time,
-                                                                                      testing_upper_time,
-                                                                                      tolerance))
-        print('Learning...')
-        # TODO: save these values on file
-        # TODO: think what to do in the beginning, when there is not enough data
-        # Building learning data
-        for i in range(number_of_points, len(t)):
-            if training_lower_time < t[i] < training_upper_time:
-                this = []
-                # adding number_of_points points
-                # joint angle
-                this.append(np.mean(qang[i - number_of_points:i]))
-
-                # quaternions
-                # this += [j for j in imus[imu_0].resampled_x[i - number_of_points:i]]
-                # this += [j for j in imus[imu_1].resampled_x[i - number_of_points:i]]
-                # this += [j for j in imus[imu_0].resampled_y[i - number_of_points:i]]
-                # this += [j for j in imus[imu_1].resampled_y[i - number_of_points:i]]
-                # this += [j for j in imus[imu_0].resampled_z[i - number_of_points:i]]
-                # this += [j for j in imus[imu_1].resampled_z[i - number_of_points:i]]
-                # this += [j for j in imus[imu_0].resampled_w[i - number_of_points:i]]
-                # this += [j for j in imus[imu_1].resampled_w[i - number_of_points:i]]
-
-                # Euler
-                # this += [j for j in imus[0].resampled_euler_z[i - number_of_points:i]]
-                # this += [j for j in imus[2].resampled_euler_z[i - number_of_points:i]]
-                # this += [j for j in imus[0].resampled_euler_x[i - number_of_points:i]]
-                # this += [j for j in imus[2].resampled_euler_x[i - number_of_points:i]]
-                # this += [j for j in imus[0].resampled_euler_y[i - number_of_points:i]]
-                # this += [j for j in imus[2].resampled_euler_y[i - number_of_points:i]]
-
-                # adding number_of_points diff points
-                # joint angle
-                this.append(dqang[i])
-
-                # this.append(calculate_accel(acc_x_0, acc_y_0, acc_z_0, i))
-                this.append(acc_z_0[i])
-                this.append(acc_z_1[i])
-                this.append(acc_y_0[i])
-                this.append(acc_y_1[i])
-                # quaternions
-                # this += list(dqx0[i - number_of_points:i])
-                # this += list(dqx2[i - number_of_points:i])
-                # this += list(dqy0[i - number_of_points:i])
-                # this += list(dqy2[i - number_of_points:i])
-                # this += list(dqz0[i - number_of_points:i])
-                # this += list(dqz2[i - number_of_points:i])
-                # this += list(dqw0[i - number_of_points:i])
-                # this += list(dqw2[i - number_of_points:i])
-
-                # Euler
-                # this += [dz0[i]]
-                # this += [dz2[i]]
-                # this += [dx0[i]]
-                # this += [dx2[i]]
-                # this += [dy0[i]]
-                # this += [dy2[i]]
-
-                X.append(this)
-
-                y.append(classification0[i])
-
-        # Training
-        classifier = LinearDiscriminantAnalysis()
-        classifier.fit_transform(X, y)
 
 
-        print('Learning complete')
+trial = 0
+training_lower_time = training_lower_time_table[trial]
+training_upper_time = training_upper_time_table[trial]
+testing_lower_time = testing_lower_time_table[trial]
+testing_upper_time = testing_upper_time_table[trial]
+total_length = len(classification0)
 
-        # Building evaluating data
-        # joint angle
-        out = []
-        # out_qang = [np.mean(qang[:number_of_points])]
-        # out_dqang = [dqang[number_of_points]]
+# training
+lda1 = LinearDiscriminantAnalysis()
+lda2 = LinearDiscriminantAnalysis()
+lda3 = LinearDiscriminantAnalysis()
 
-        # quaternions
-        # out_qx_0 = [np.array(imus[imu_0].resampled_x[:-number_of_points])]
-        # out_qx_2 = [np.array(imus[imu_1].resampled_x[:-number_of_points])]
-        # out_qy_0 = [np.array(imus[imu_0].resampled_y[:-number_of_points])]
-        # out_qy_2 = [np.array(imus[imu_1].resampled_y[:-number_of_points])]
-        # out_qz_0 = [np.array(imus[imu_0].resampled_z[:-number_of_points])]
-        # out_qz_2 = [np.array(imus[imu_1].resampled_z[:-number_of_points])]
-        # out_qw_0 = [np.array(imus[imu_0].resampled_w[:-number_of_points])]
-        # out_qw_2 = [np.array(imus[imu_1].resampled_w[:-number_of_points])]
-        #
-        # out_dqx0 = [np.array(dqx0[:-number_of_points])]
-        # out_dqx2 = [np.array(dqx2[:-number_of_points])]
-        # out_dqy0 = [np.array(dqy0[:-number_of_points])]
-        # out_dqy2 = [np.array(dqy2[:-number_of_points])]
-        # out_dqz0 = [np.array(dqz0[:-number_of_points])]
-        # out_dqz2 = [np.array(dqz2[:-number_of_points])]
-        # out_dqw0 = [np.array(dqw0[:-number_of_points])]
-        # out_dqw2 = [np.array(dqw2[:-number_of_points])]
+X = []
+y = []
+for j in range(total_length):
+    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+        this = []
 
+        if classification0[j + number_of_points] == -1 or classification0[j + number_of_points] == 1:
+            this.append(np.mean(qang[j:j + number_of_points]))
+            this.append(dqang[j + number_of_points])
+            this.append(acc_x_0[j + number_of_points])
+            this.append(acc_y_0[j + number_of_points])
+            this.append(acc_z_0[j + number_of_points])
+            this.append(acc_x_1[j + number_of_points])
+            this.append(acc_y_1[j + number_of_points])
+            this.append(acc_z_1[j + number_of_points])
 
-        # out_z_0 = [np.array(imus[0].resampled_euler_z[:-number_of_points])]
-        # out_z_2 = [np.array(imus[2].resampled_euler_z[:-number_of_points])]
-        # out_x_0 = [np.array(imus[0].resampled_euler_x[:-number_of_points])]
-        # out_x_2 = [np.array(imus[2].resampled_euler_x[:-number_of_points])]
-        # out_y_0 = [np.array(imus[0].resampled_euler_y[:-number_of_points])]
-        # out_y_2 = [np.array(imus[2].resampled_euler_y[:-number_of_points])]
-        if number_of_points > 1:
-            for i in range(0, len(qang) - number_of_points):
-                # joint angle
-                # out.append([np.mean(qang[i:number_of_points+i]),
-                #             dqang[number_of_points+i],
-                #             calculate_accel(acc_x, acc_y, acc_z, number_of_points+i)
-                #             ])
-                out.append([np.mean(qang[i:number_of_points + i]),
-                            dqang[number_of_points + i],
-                            acc_z_0[number_of_points + i],
-                            acc_z_1[number_of_points + i],
-                            acc_y_0[number_of_points + i],
-                            acc_y_1[number_of_points + i]
-                            ])
+            X.append(this)
+            y.append(classification0[j + number_of_points])
+lda1.fit(X, y)
 
-                # out_qang = np.append(out_qang, [np.mean(qang[i:number_of_points + i])], 0)
-                # out_dqang = np.append(out_dqang, [dqang[number_of_points_diff + i]], 0)
+X = []
+y = []
+for j in range(total_length):
+    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+        this = []
 
-                # quaternions
-                # out_qx_0 = np.append(out_qx_0, [np.array(imus[imu_0].resampled_x[i:-number_of_points + i])], 0)
-                # out_qx_2 = np.append(out_qx_2, [np.array(imus[imu_1].resampled_x[i:-number_of_points + i])], 0)
-                # out_qy_0 = np.append(out_qy_0, [np.array(imus[imu_0].resampled_y[i:-number_of_points + i])], 0)
-                # out_qy_2 = np.append(out_qy_2, [np.array(imus[imu_1].resampled_y[i:-number_of_points + i])], 0)
-                # out_qz_0 = np.append(out_qz_0, [np.array(imus[imu_0].resampled_z[i:-number_of_points + i])], 0)
-                # out_qz_2 = np.append(out_qz_2, [np.array(imus[imu_1].resampled_z[i:-number_of_points + i])], 0)
-                # out_qw_0 = np.append(out_qw_0, [np.array(imus[imu_0].resampled_w[i:-number_of_points + i])], 0)
-                # out_qw_2 = np.append(out_qw_2, [np.array(imus[imu_1].resampled_w[i:-number_of_points + i])], 0)
-                #
-                # out_dqx0 = np.append(out_dqx0, [np.array(dqx0[i:-number_of_points + i])], 0)
-                # out_dqx2 = np.append(out_dqx2, [np.array(dqx2[i:-number_of_points + i])], 0)
-                # out_dqy0 = np.append(out_dqy0, [np.array(dqy0[i:-number_of_points + i])], 0)
-                # out_dqy2 = np.append(out_dqy2, [np.array(dqy2[i:-number_of_points + i])], 0)
-                # out_dqz0 = np.append(out_dqz0, [np.array(dqz0[i:-number_of_points + i])], 0)
-                # out_dqz2 = np.append(out_dqz2, [np.array(dqz2[i:-number_of_points + i])], 0)
-                # out_dqw0 = np.append(out_dqw0, [np.array(dqw0[i:-number_of_points + i])], 0)
-                # out_dqw2 = np.append(out_dqw2, [np.array(dqw2[i:-number_of_points + i])], 0)
+        if classification0[j + number_of_points] == 1 or classification0[j + number_of_points] == 0:
+            this.append(np.mean(qang[j:j + number_of_points]))
+            this.append(dqang[j + number_of_points])
+            this.append(acc_x_0[j + number_of_points])
+            this.append(acc_y_0[j + number_of_points])
+            this.append(acc_z_0[j + number_of_points])
+            this.append(acc_x_1[j + number_of_points])
+            this.append(acc_y_1[j + number_of_points])
+            this.append(acc_z_1[j + number_of_points])
 
-                # out_z_0 = np.append(out_z_0, [np.array(imus[0].resampled_euler_z[i:-number_of_points + i])], 0)
-                # out_z_2 = np.append(out_z_2, [np.array(imus[2].resampled_euler_z[i:-number_of_points + i])], 0)
-                # out_x_0 = np.append(out_x_0, [np.array(imus[0].resampled_euler_x[i:-number_of_points + i])], 0)
-                # out_x_2 = np.append(out_x_2, [np.array(imus[2].resampled_euler_x[i:-number_of_points + i])], 0)
-                # out_y_0 = np.append(out_y_0, [np.array(imus[0].resampled_euler_y[i:-number_of_points + i])], 0)
-                # out_y_2 = np.append(out_y_2, [np.array(imus[2].resampled_euler_y[i:-number_of_points + i])], 0)
+            X.append(this)
+            y.append(classification0[j + number_of_points])
+lda2.fit(X, y)
 
-        # joint angle
-        # out = np.append(out_qang, out_dqang, 1)
+X = []
+y = []
+for j in range(total_length):
+    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+        this = []
 
-        # quaternions
-        # out = np.append(out_qx_0, out_qx_2, 0)
-        # out = np.append(out, out_qy_0, 0)
-        # out = np.append(out, out_qy_2, 0)
-        # out = np.append(out, out_qz_0, 0)
-        # out = np.append(out, out_qz_2, 0)
-        # out = np.append(out, out_qw_0, 0)
-        # out = np.append(out, out_qw_2, 0)
-        # out = np.append(out, out_dqx0, 0)
-        # out = np.append(out, out_dqx2, 0)
-        # out = np.append(out, out_dqy0, 0)
-        # out = np.append(out, out_dqy2, 0)
-        # out = np.append(out, out_dqz0, 0)
-        # out = np.append(out, out_dqz2, 0)
-        # out = np.append(out, out_dqw0, 0)
-        # out = np.append(out, out_dqw2, 0)
+        if classification0[j + number_of_points] == 0 or classification0[j + number_of_points] == -1:
+            this.append(np.mean(qang[j:j + number_of_points]))
+            this.append(dqang[j + number_of_points])
+            # this.append(acc_x_0[j + number_of_points])
+            # this.append(acc_y_0[j + number_of_points])
+            this.append(acc_z_0[j + number_of_points])
+            # this.append(acc_x_1[j + number_of_points])
+            # this.append(acc_y_1[j + number_of_points])
+            this.append(acc_z_1[j + number_of_points])
 
-        # out = np.append(out_z_0, out_z_2, 0)
-        # out = np.append(out, out_x_0, 0)
-        # out = np.append(out, out_x_2, 0)
-        # out = np.append(out, out_y_0, 0)
-        # out = np.append(out, out_y_2, 0)
-        # out = np.append(out, [dz0[number_of_points:]], 0)
-        # out = np.append(out, [dz2[number_of_points:]], 0)
-        # out = np.append(out, [dx0[number_of_points:]], 0)
-        # out = np.append(out, [dx2[number_of_points:]], 0)
-        # out = np.append(out, [dy0[number_of_points:]], 0)
-        # out = np.append(out, [dy2[number_of_points:]], 0)
+            X.append(this)
+            y.append(classification0[j + number_of_points])
+lda3.fit(X, y)
 
-        # out = list(out.T)
-        save_to_file([X, y, out], 'Data/classifier')
+# lda = [LinearDiscriminantAnalysis()] * len(classes)
+# for i in range(len(classes)):
+#     X = []
+#     y = []
+#     if i == len(classes) - 1:
+#         for j in range(total_length):
+#             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+#                 this = []
+#
+#                 if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+#                         classes[0]:
+#                     this.append(np.mean(qang[j:j + number_of_points]))
+#                     this.append(dqang[j + number_of_points])
+#                     this.append(acc_x_0[j + number_of_points])
+#                     this.append(acc_y_0[j + number_of_points])
+#                     this.append(acc_z_0[j + number_of_points])
+#                     this.append(acc_x_1[j + number_of_points])
+#                     this.append(acc_y_1[j + number_of_points])
+#                     this.append(acc_z_1[j + number_of_points])
+#
+#                     X.append(this)
+#                     y.append(classification0[j + number_of_points])
+#
+#         # lda[i].fit(X, y)
+#     else:
+#         # X = []
+#         # y = []
+#         for j in range(total_length):
+#             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+#                 this = []
+#
+#                 if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+#                         classes[i + 1]:
+#                     this.append(np.mean(qang[j:j + number_of_points]))
+#                     this.append(dqang[j + number_of_points])
+#                     this.append(acc_x_0[j + number_of_points])
+#                     this.append(acc_y_0[j + number_of_points])
+#                     this.append(acc_z_0[j + number_of_points])
+#                     this.append(acc_x_1[j + number_of_points])
+#                     this.append(acc_y_1[j + number_of_points])
+#                     this.append(acc_z_1[j + number_of_points])
+#
+#                     X.append(this)
+#                     y.append(classification0[j+number_of_points])
+#
+#     lda[i].fit(X, y)
 
+# computing evaluating data
+out = []
+if number_of_points > 1:
+    for i in range(0, len(qang) - number_of_points):
+        out.append([np.mean(qang[i:number_of_points + i]),
+                    dqang[number_of_points + i],
+                    # acc_x_0[number_of_points + i],
+                    # acc_y_0[number_of_points + i],
+                    acc_z_0[number_of_points + i],
+                    # acc_x_1[number_of_points + i],
+                    # acc_y_1[number_of_points + i],
+                    acc_z_1[number_of_points + i]
+                    ])
 
-        # Predictions
-        print('Calculating predictions')
-        predicted_values = classifier.predict(out)
-        # predicted_values = medfilt(predicted_values, filter_size)
-        print('Predictions calculated')
-
-        scores = classifier.decision_function(X)
-        predicted_proba = classifier.predict_proba(out)
-        probability = [max(i) for i in predicted_proba]
-
-
-        trusted_t = []
-        trusted_predictions = []
-        trusted_classifcation = []
-        all_probabilities = [[],[],[]]
-        for i in range(len(predicted_values)):
-            this_classification = classification0[i]
-            if this_classification == -1:
-                all_probabilities[0].append(probability[i])
-            elif this_classification == 0:
-                all_probabilities[1].append(probability[i])
-            elif this_classification == 1:
-                all_probabilities[2].append(probability[i])
-            if probability[i] > confidence_level:
-                trusted_t.append(t[i + number_of_points])
-                trusted_predictions.append(predicted_values[i])
-                trusted_classifcation.append(classification0[i])
-
-        print('Probabilities: ')
-        print('-1: {} ({})'.format(np.mean(all_probabilities[0]), np.std(all_probabilities[0])))
-        print('0: {} ({})'.format(np.mean(all_probabilities[1]), np.std(all_probabilities[1])))
-        print('1: {} ({})'.format(np.mean(all_probabilities[2]), np.std(all_probabilities[2])))
+# saving trained LDAs and evaluating data
+save_to_file([lda1, lda2, lda3], 'Data/classifier')
 
 
-        # plt.figure('Function')
-        # plt.plot(decision)
-        # plt.figure('Probability')
-        # plt.plot(probability)
+class Classifier:
+
+    def __init__(self, lda):
+        self.lda = lda
+
+    # classify given values with all available LDAs and returns predicted classes and probabilities
+    def classify(self, values):
+        # out_class = []
+        # out_p = []
+        return self.lda.predict(np.array(values).reshape(1, -1))
+        # for l in lda:
+        #     out_class.append(l.predict(np.array(values).reshape(1, -1)))
+        #     out_p.append(max(l.predict_proba(values)))
+        # return [out_class, out_p]
+
+    def probability(self, values):
+        return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
+
+c1 = Classifier(lda1)
+c2 = Classifier(lda2)
+c3 = Classifier(lda3)
+
+# Predictions
+print('Calculating predictions')
+predictions1 = [c1.classify(value) for value in out]
+predictions2 = [c2.classify(value) for value in out]
+predictions3 = [c3.classify(value) for value in out]
+
+proba1 = [c1.probability(value) for value in out]
+proba2 = [c2.probability(value) for value in out]
+proba3 = [c3.probability(value) for value in out]
+
+state = -1
+state_prediction = []
+state_probability = []
+for i in range(len(predictions1)):
+    if state == -1:
+        # TODO: here it would be better to make the actual prediction,
+        #  instead of doing it earlier and only reading here
+        new_prediction = predictions1[i]
+        new_probability = proba1[i]
+        if new_probability > confidence_level1:
+            state = new_prediction
+            state_prediction.append(new_prediction)
+            state_probability.append(new_probability)
+        else:
+            state_prediction.append(state_prediction[-1])
+            state_probability.append(state_probability[-1])
+    elif state == 1:
+        new_prediction = predictions2[i]
+        new_probability = proba2[i]
+        if new_probability > confidence_level2:
+            state = new_prediction
+            state_prediction.append(new_prediction)
+            state_probability.append(new_probability)
+        else:
+            state_prediction.append(state_prediction[-1])
+            state_probability.append(state_probability[-1])
+    elif state == 0:
+        new_prediction = predictions3[i]
+        new_probability = proba3[i]
+        if new_probability > confidence_level3:
+            state = new_prediction
+            state_prediction.append(new_prediction)
+            state_probability.append(new_probability)
+        else:
+            state_prediction.append(state_prediction[-1])
+            state_probability.append(state_probability[-1])
 
 
-        # Evaluation
-        # print('Evaluating...')
-        # evaluated_buttons_timestamp = []
-        # evaluated_buttons_values = []
-        # evaluated_predicted_time = []
-        # evaluated_predicted_values = []
-        # for i in range(len(buttons_timestamp)):
-        #     if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
-        #         evaluated_buttons_timestamp.append(buttons_timestamp[i])
-        #         evaluated_buttons_values.append(buttons_values[i])
-        # for i in range(len(t) - filter_size - 1):
-        #     if testing_lower_time < t[i] < testing_upper_time:
-        #         evaluated_predicted_time.append(t[i + filter_size])
-        #         evaluated_predicted_values.append(predicted_values[i])
-        #
-        # [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
-        #                                                                      evaluated_buttons_values)
-        # [predicted_transitions_times, predicted_transitions_values] = find_transitions(evaluated_predicted_time,
-        #                                                                                evaluated_predicted_values)
-        #
-        # [performance, error, false_transitions, false_predicted_time, false_predicted_values] = calculate_performance(real_transitions_times,
-        #                                              real_transitions_values,
-        #                                              predicted_transitions_times,
-        #                                              predicted_transitions_values,
-        #                                              tolerance)
-        # total_error[int(tolerance * 10)-1].append(error)
-        # plt.figure()
-        # plt.hist(error, bins=10)
-        # plt.title('Time frame: {}s-{}s. Tolerance: {}s.'.format(training_lower_time, testing_upper_time, tolerance))
-        # plt.savefig('{}s-{}s_tolerance_{}.svg'.format(training_lower_time, testing_upper_time, tolerance))
-        # plt.show()
 
-        # Here performance point-by-point is calculated, where the classifier is evaluated at every instant,
-        # and not only on transitions
-        performance = 0
-        total = 0
-        for i in range(len(trusted_classifcation)):
-            if testing_lower_time < trusted_t[i] < testing_upper_time:
-                if trusted_predictions[i] == trusted_classifcation[i]:
-                    performance += 1
-                total += 1
-        print('Performance point-by-point: {}%'.format(np.round(performance/total*100, 2)))
-        print('##########################################################################################\n\n\n\n')
+    # predicted_classes = []
+# predicted_probabilities = []
+# for values in out:
+#     [out_class, out_p] = c.classify(np.array(values).reshape(1, -1))
+#     predicted_classes.append(out_class)
+#     predicted_probabilities.append(out_p)
 
-        ###############################################################################################
-        ###############################################################################################
+# predicted_values = classifier.predict(out)
+# predicted_values = medfilt(predicted_values, filter_size)
+print('Predictions calculated')
 
-        # Result plotting
-
-        ###############################################################################################
-        ###############################################################################################
+# scores = classifier.decision_function(X)
+# predicted_proba = classifier.predict_proba(out)
+# probability = [max(i) for i in predicted_proba]
 
 
-        # Plots
-        if normal_plot:
-            print('Plotting...')
-            print('IMU 0: {}'.format(imus[imu_0].id))
-            print('IMU 1: {}'.format(imus[imu_1].id))
-
-            plt.figure()
-            # print('IMU 2: {}'.format(imus[2].id))
-            plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
-            # plt.plot(imus[1].timestamp, imus[1].euler_x, 'b-')
-            # plt.plot(imus[1].timestamp, imus[1].euler_y, 'b:')
-            # plt.plot(imus[1].timestamp, imus[1].euler_z, 'b--')
-            # plt.plot(imus[0].timestamp, imus[0].euler_x, 'g')
-            # plt.plot(imus[0].timestamp, imus[0].euler_y, 'g', label='IMU 0 y')
-            # plt.plot(imus[0].timestamp, imus[0].euler_z, 'g', label='IMU 2 z')
-            # plt.plot(t, imus[0].resampled_euler_z, 'g', label='IMU 0 z')
-            # plt.plot(imus[2].timestamp, imus[2].euler_x, 'b')
-            # plt.plot(imus[2].timestamp, imus[2].euler_y, 'b', label= 'IMU 2 y')
-            # plt.plot(imus[2].timestamp, imus[2].euler_z, 'b', label='IMU 2 z')
-            # plt.plot(t, imus[2].resampled_euler_z, 'b', label='IMU 2 z')
-            # [plt.plot(packet.timestamp, packet.values, 'b.', label='Flexion') for packet in low]
-            # [plt.plot(packet.timestamp, packet.values, 'g.', label='Stop') for packet in zero]
-            # [plt.plot(packet.timestamp, packet.values, 'r.', label='Extension') for packet in up]
-            # plt.plot(t, classification0, 'c')
-            # plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
-            plt.step(trusted_t, trusted_predictions, 'g-', where='post', label='Trusted predictions')
-            # plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
-            # plt.plot(imus[0].timestamp, imus[0].euler_x, 'r-')
-            # plt.plot(imus[0].timestamp, imus[0].euler_y, 'r:')
-            # plt.plot(imus[0].timestamp, imus[0].euler_z, 'r--')
-            # plt.plot(emg_1_timestamp, emg_1_values, 'm-')
-            # plt.plot(emg_2_timestamp, emg_2_values, 'm:')
-            # plt.plot(imu_2_z_up_timestamp, imu_2_z_up_values, 'r.', label='extension')
-            # plt.plot(imu_2_z_zero_timestamp, imu_2_z_zero_values, 'g.', label='stop')
-            # plt.plot(imu_2_z_low_timestamp, imu_2_z_low_values, 'b.', label='flexion')
-
-            plt.title(filename)
-            plt.legend()
-            # legend_elements = [Line2D([0], [0], color='b', label = 'Flexion', marker='o'),
-            #                   Line2D([0], [0], color='g', label='Stop', marker='o'),
-            #                   Line2D([0], [0], color='r', label='Extension', marker='o')]
-            # plt.legend(handles=legend_elements)
-
-            plt.show()
-
-        if dash_plot:
-
-            app_dash = dash.Dash()
-
-            app_dash.layout = html.Div(children=[
-                html.Label('Data to graph:'),
-                dcc.Checklist(
-                    id='data-to-plot',
-                    options=[
-                        {'label': 'Buttons', 'value': 'buttons'},
-                        {'label': 'IMU 0 - x', 'value': 'imus0x'},
-                        {'label': 'IMU 0 - y', 'value': 'imus0y'},
-                        {'label': 'IMU 0 - z', 'value': 'imus0z'},
-                        {'label': 'IMU 1 - x', 'value': 'imus1x'},
-                        {'label': 'IMU 1 - y', 'value': 'imus1y'},
-                        {'label': 'IMU 1 - z', 'value': 'imus1z'},
-                        {'label': 'IMU 2 - x', 'value': 'imus2x'},
-                        {'label': 'IMU 2 - y', 'value': 'imus2y'},
-                        {'label': 'IMU 2 - z', 'value': 'imus2z'},
-                        {'label': 'EMG 1', 'value': 'emg1'},
-                        {'label': 'EMG 2', 'value': 'emg2'}
-                    ],
-                    values=[],
-                    style={'display': 'inline-block'}
-                ),
-                html.Div(id='output-graph'),
-
-            ])
+# trusted_t = []
+# trusted_predictions = []
+# trusted_classifcation = []
+# # all_probabilities = [[],[],[]]
+# for i in range(len(predicted_classes)):
+#     this_classification = classification0[i]
+#     for j in range(len(classes)):
+#         if this_classification == predicted_classes[i][j]:
+#             if probability[i] > confidence_level:
+#                 trusted_t.append(t[i + number_of_points])
+#                 trusted_predictions.append(predicted_values[i])
+#                 trusted_classifcation.append(classification0[i])
+#     if this_classification == predicted_classes[i]:
+#         all_probabilities[0].append(probability[i])
+#     elif this_classification == 0:
+#         all_probabilities[1].append(probability[i])
+#     elif this_classification == 1:
+#         all_probabilities[2].append(probability[i])
 
 
-            @app_dash.callback(
-                Output(component_id='output-graph', component_property='children'),
-                [Input(component_id='data-to-plot', component_property='values')]
-            )
-            def update_value(input_data):
-                #     buttons_to_plot = False
-                #     emg_to_plot = [False, False]
-                #     imus_to_plot = [False, False, False]
+# print('Probabilities: ')
+# print('-1: {} ({})'.format(np.mean(all_probabilities[0]), np.std(all_probabilities[0])))
+# print('0: {} ({})'.format(np.mean(all_probabilities[1]), np.std(all_probabilities[1])))
+# print('1: {} ({})'.format(np.mean(all_probabilities[2]), np.std(all_probabilities[2])))
 
-                graph_data = []
-
-                if 'buttons' in input_data:
-                    # buttons = True
-                    include = [{'x': buttons_timestamp, 'y': buttons_values, 'name': 'buttons'}]
-                    graph_data = graph_data + include
-                if 'imus0x' in input_data:
-                    # imus[0] = True
-                    include = [{'x': imus[0].timestamp, 'y': imus[0].x_values, 'name': 'imu0x'}]
-                    graph_data = graph_data + include
-                if 'imus0y' in input_data:
-                    include = [{'x': imus[0].timestamp, 'y': imus[0].y_values, 'name': 'imu0y'}]
-                    graph_data = graph_data + include
-                if 'imus0z' in input_data:
-                    include = [{'x': imus[0].timestamp, 'y': imus[0].z_values, 'name': 'imu0z'}]
-                    graph_data = graph_data + include
-                if 'imus1x' in input_data:
-                    # imus[1] = True
-                    include = [{'x': imus[1].timestamp, 'y': imus[1].x_values, 'name': 'imus1x'}]
-                    graph_data = graph_data + include
-                if 'imus1y' in input_data:
-                    include = [{'x': imus[1].timestamp, 'y': imus[1].y_values, 'name': 'imus1y'}]
-                    graph_data = graph_data + include
-                if 'imus1z' in input_data:
-                    include = [{'x': imus[1].timestamp, 'y': imus[1].z_values, 'name': 'imus1z'}]
-                    graph_data = graph_data + include
-                if 'imus2x' in input_data:
-                    # imus[2] = True
-                    include = [{'x': imus[2].timestamp, 'y': imus[2].x_values, 'name': 'imus2x'}]
-                    graph_data = graph_data + include
-                if 'imus2y' in input_data:
-                    include = [{'x': imus[2].timestamp, 'y': imus[2].y_values, 'name': 'imus2y'}]
-                    graph_data = graph_data + include
-                if 'imus2z' in input_data:
-                    include = [{'x': imus[2].timestamp, 'y': imus[2].z_values, 'name': 'imus2z'},
-                               # {'x': imu_2_z_low_timestamp, 'y': imu_2_z_low_values, 'mode': 'markers', 'name': 'IMU 2 flexion'},
-                               # {'x': imu_2_z_zero_timestamp, 'y': imu_2_z_zero_values, 'mode': 'markers', 'name': 'IMU 2 stop'},
-                               # {'x': imu_2_z_up_timestamp, 'y': imu_2_z_up_values, 'mode': 'markers', 'name': 'IMU 2 extension'}
-                               ]
-                    graph_data = graph_data + include
-                # if 'emg1' in input_data:
-                #     emg[0] = True
-                    # include = [{'x': emg_1_timestamp, 'y': emg_1_values, 'name': 'emg1'}]
-                    # graph_data = graph_data + include
-                # if 'emg2' in input_data:
-                #     emg[1] = True
-                    # include = [{'x': emg_2_timestamp, 'y': emg_2_values, 'name': 'emg2'}]
-                    # graph_data = graph_data + include
-
-                return dcc.Graph(
-                    id='graph',
-                    figure={
-                        'data': graph_data,
-                        'layout': {
-                            'title': 'Rowing data'
-                        }
-                    },
-                    style={'height': 800},
-                )
+temp_t = []
+temp_prediction = []
+temp_truth = []
+temp_score = []
+# plt.figure('Function')
+# plt.plot(decision)
+# plt.figure('Probability')
+# plt.plot(probability)
 
 
-            app_dash.run_server(debug=False)
-            # dash_process = multiprocessing.Process(target=run_dash, args=(app_dash,))
-            # dash_process.start()
+# Evaluation
+# print('Evaluating...')
+# evaluated_buttons_timestamp = []
+# evaluated_buttons_values = []
+# evaluated_predicted_time = []
+# evaluated_predicted_values = []
+# for i in range(len(buttons_timestamp)):
+#     if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
+#         evaluated_buttons_timestamp.append(buttons_timestamp[i])
+#         evaluated_buttons_values.append(buttons_values[i])
+# for i in range(len(t) - filter_size - 1):
+#     if testing_lower_time < t[i] < testing_upper_time:
+#         evaluated_predicted_time.append(t[i + filter_size])
+#         evaluated_predicted_values.append(predicted_values[i])
+#
+# [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
+#                                                                      evaluated_buttons_values)
+# [predicted_transitions_times, predicted_transitions_values] = find_transitions(evaluated_predicted_time,
+#                                                                                evaluated_predicted_values)
+#
+# [performance, error, false_transitions, false_predicted_time, false_predicted_values] = calculate_performance(real_transitions_times,
+#                                              real_transitions_values,
+#                                              predicted_transitions_times,
+#                                              predicted_transitions_values,
+#                                              tolerance)
+# total_error[int(tolerance * 10)-1].append(error)
+# plt.figure()
+# plt.hist(error, bins=10)
+# plt.title('Time frame: {}s-{}s. Tolerance: {}s.'.format(training_lower_time, testing_upper_time, tolerance))
+# plt.savefig('{}s-{}s_tolerance_{}.svg'.format(training_lower_time, testing_upper_time, tolerance))
+# plt.show()
+
+# Here performance point-by-point is calculated, where the classifier is evaluated at every instant,
+# and not only on transitions
+performance = 0
+total = 0
+for i in range(len(state_prediction)):
+    if testing_lower_time < t[i+number_of_points] < testing_upper_time:
+        if state_prediction[i] == classification0[i+number_of_points]:
+            performance += 1
+            temp_score.append(1)
+        else:
+            temp_score.append(0)
+        total += 1
+        temp_t.append(t[i+number_of_points])
+        temp_truth.append(classification0[i+number_of_points])
+        temp_prediction.append(state_prediction[i])
+print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
+print('##########################################################################################\n\n\n\n')
+
+
+print('\n')
+
+
+###############################################################################################
+###############################################################################################
+
+# Result plotting
+
+###############################################################################################
+###############################################################################################
+
+
+# Plots
+if normal_plot:
+    print('Plotting...')
+    print('IMU 0: {}'.format(imus[imu_0].id))
+    print('IMU 1: {}'.format(imus[imu_1].id))
+
+    # plt.figure()
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    # print('IMU 2: {}'.format(imus[2].id))
+    # plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
+    # for i in range(len(classes)):
+    #     ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
+    #     ax[i].step(t[number_of_points:], [prediction[i] for prediction in predicted_classes])
+    ax1.step(buttons_timestamp, buttons_values)
+    ax1.step(t[number_of_points:], predictions1)
+    ax2.plot(t[number_of_points:], proba1)
+    plt.title('LDA 0')
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    ax1.step(buttons_timestamp, buttons_values)
+    ax1.step(t[number_of_points:], predictions2)
+    ax2.plot(t[number_of_points:], proba2)
+    plt.title('LDA 1')
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    ax1.step(buttons_timestamp, buttons_values)
+    ax1.step(t[number_of_points:], predictions3)
+    ax2.plot(t[number_of_points:], proba3)
+    plt.title('LDA 2')
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    plt.title('Switching states')
+    ax1.step(t, classification0)
+    ax1.step(t[number_of_points:], state_prediction)
+    ax2.plot(t[number_of_points:], state_probability)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    fig.canvas.set_window_title('Switching states with temp values')
+    ax1.step(temp_t, temp_truth)
+    ax1.step(temp_t, temp_prediction)
+    ax2.step(temp_t, temp_score)
+
+    # [plt.plot(packet.timestamp, packet.values, 'b.', label='Flexion') for packet in low]
+    # [plt.plot(packet.timestamp, packet.values, 'g.', label='Stop') for packet in zero]
+    # [plt.plot(packet.timestamp, packet.values, 'r.', label='Extension') for packet in up]
+    # plt.plot(t, classification0, 'c')
+    # plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
+    # plt.step(trusted_t, trusted_predictions, 'g-', where='post', label='Trusted predictions')
+    # plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
+    # plt.plot(imu_2_z_up_timestamp, imu_2_z_up_values, 'r.', label='extension')
+    # plt.plot(imu_2_z_zero_timestamp, imu_2_z_zero_values, 'g.', label='stop')
+    # plt.plot(imu_2_z_low_timestamp, imu_2_z_low_values, 'b.', label='flexion')
+
+    # plt.title(filename)
+    # plt.legend()
+    # legend_elements = [Line2D([0], [0], color='b', label = 'Flexion', marker='o'),
+    #                   Line2D([0], [0], color='g', label='Stop', marker='o'),
+    #                   Line2D([0], [0], color='r', label='Extension', marker='o')]
+    # plt.legend(handles=legend_elements)
+
+    plt.show()
+
+
 
 # for i in range(5):
 #     plt.figure()
