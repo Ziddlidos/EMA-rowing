@@ -33,9 +33,11 @@ dash_plot = False
 number_of_points = 5
 # number_of_points_diff = number_of_points
 # filter_size = 49
-confidence_level1 = 0.65
-confidence_level2 = 0.75
-confidence_level3 = 0.75
+# confidence_level1 = 0.65
+# confidence_level2 = 0.75
+# confidence_level3 = 0.75
+# TODO: automate this
+confidence_level = [0.75, 0.75, 0.75]
 
 
 imu_forearm_id = 5
@@ -454,116 +456,118 @@ testing_upper_time = testing_upper_time_table[trial]
 total_length = len(classification0)
 
 # training
-lda1 = LinearDiscriminantAnalysis()
-lda2 = LinearDiscriminantAnalysis()
-lda3 = LinearDiscriminantAnalysis()
-
-X = []
-y = []
-for j in range(total_length):
-    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-        this = []
-
-        if classification0[j + number_of_points] == -1 or classification0[j + number_of_points] == 1:
-            this.append(np.mean(qang[j:j + number_of_points]))
-            this.append(dqang[j + number_of_points])
-            this.append(acc_x_0[j + number_of_points])
-            this.append(acc_y_0[j + number_of_points])
-            this.append(acc_z_0[j + number_of_points])
-            this.append(acc_x_1[j + number_of_points])
-            this.append(acc_y_1[j + number_of_points])
-            this.append(acc_z_1[j + number_of_points])
-
-            X.append(this)
-            y.append(classification0[j + number_of_points])
-lda1.fit(X, y)
-
-X = []
-y = []
-for j in range(total_length):
-    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-        this = []
-
-        if classification0[j + number_of_points] == 1 or classification0[j + number_of_points] == 0:
-            this.append(np.mean(qang[j:j + number_of_points]))
-            this.append(dqang[j + number_of_points])
-            this.append(acc_x_0[j + number_of_points])
-            this.append(acc_y_0[j + number_of_points])
-            this.append(acc_z_0[j + number_of_points])
-            this.append(acc_x_1[j + number_of_points])
-            this.append(acc_y_1[j + number_of_points])
-            this.append(acc_z_1[j + number_of_points])
-
-            X.append(this)
-            y.append(classification0[j + number_of_points])
-lda2.fit(X, y)
-
-X = []
-y = []
-for j in range(total_length):
-    if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-        this = []
-
-        if classification0[j + number_of_points] == 0 or classification0[j + number_of_points] == -1:
-            this.append(np.mean(qang[j:j + number_of_points]))
-            this.append(dqang[j + number_of_points])
-            # this.append(acc_x_0[j + number_of_points])
-            # this.append(acc_y_0[j + number_of_points])
-            this.append(acc_z_0[j + number_of_points])
-            # this.append(acc_x_1[j + number_of_points])
-            # this.append(acc_y_1[j + number_of_points])
-            this.append(acc_z_1[j + number_of_points])
-
-            X.append(this)
-            y.append(classification0[j + number_of_points])
-lda3.fit(X, y)
-
-# lda = [LinearDiscriminantAnalysis()] * len(classes)
-# for i in range(len(classes)):
-#     X = []
-#     y = []
-#     if i == len(classes) - 1:
-#         for j in range(total_length):
-#             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-#                 this = []
+# lda1 = LinearDiscriminantAnalysis()
+# lda2 = LinearDiscriminantAnalysis()
+# lda3 = LinearDiscriminantAnalysis()
 #
-#                 if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
-#                         classes[0]:
-#                     this.append(np.mean(qang[j:j + number_of_points]))
-#                     this.append(dqang[j + number_of_points])
-#                     this.append(acc_x_0[j + number_of_points])
-#                     this.append(acc_y_0[j + number_of_points])
-#                     this.append(acc_z_0[j + number_of_points])
-#                     this.append(acc_x_1[j + number_of_points])
-#                     this.append(acc_y_1[j + number_of_points])
-#                     this.append(acc_z_1[j + number_of_points])
+# X = []
+# y = []
+# for j in range(total_length):
+#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+#         this = []
 #
-#                     X.append(this)
-#                     y.append(classification0[j + number_of_points])
+#         if classification0[j + number_of_points] == -1 or classification0[j + number_of_points] == 1:
+#             this.append(np.mean(qang[j:j + number_of_points]))
+#             this.append(dqang[j + number_of_points])
+#             this.append(acc_x_0[j + number_of_points])
+#             this.append(acc_y_0[j + number_of_points])
+#             this.append(acc_z_0[j + number_of_points])
+#             this.append(acc_x_1[j + number_of_points])
+#             this.append(acc_y_1[j + number_of_points])
+#             this.append(acc_z_1[j + number_of_points])
 #
-#         # lda[i].fit(X, y)
-#     else:
-#         # X = []
-#         # y = []
-#         for j in range(total_length):
-#             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-#                 this = []
+#             X.append(this)
+#             y.append(classification0[j + number_of_points])
+# lda1.fit(X, y)
 #
-#                 if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
-#                         classes[i + 1]:
-#                     this.append(np.mean(qang[j:j + number_of_points]))
-#                     this.append(dqang[j + number_of_points])
-#                     this.append(acc_x_0[j + number_of_points])
-#                     this.append(acc_y_0[j + number_of_points])
-#                     this.append(acc_z_0[j + number_of_points])
-#                     this.append(acc_x_1[j + number_of_points])
-#                     this.append(acc_y_1[j + number_of_points])
-#                     this.append(acc_z_1[j + number_of_points])
+# X = []
+# y = []
+# for j in range(total_length):
+#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+#         this = []
 #
-#                     X.append(this)
-#                     y.append(classification0[j+number_of_points])
+#         if classification0[j + number_of_points] == 1 or classification0[j + number_of_points] == 0:
+#             this.append(np.mean(qang[j:j + number_of_points]))
+#             this.append(dqang[j + number_of_points])
+#             this.append(acc_x_0[j + number_of_points])
+#             this.append(acc_y_0[j + number_of_points])
+#             this.append(acc_z_0[j + number_of_points])
+#             this.append(acc_x_1[j + number_of_points])
+#             this.append(acc_y_1[j + number_of_points])
+#             this.append(acc_z_1[j + number_of_points])
 #
-#     lda[i].fit(X, y)
+#             X.append(this)
+#             y.append(classification0[j + number_of_points])
+# lda2.fit(X, y)
+#
+# X = []
+# y = []
+# for j in range(total_length):
+#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+#         this = []
+#
+#         if classification0[j + number_of_points] == 0 or classification0[j + number_of_points] == -1:
+#             this.append(np.mean(qang[j:j + number_of_points]))
+#             this.append(dqang[j + number_of_points])
+#             # this.append(acc_x_0[j + number_of_points])
+#             # this.append(acc_y_0[j + number_of_points])
+#             this.append(acc_z_0[j + number_of_points])
+#             # this.append(acc_x_1[j + number_of_points])
+#             # this.append(acc_y_1[j + number_of_points])
+#             this.append(acc_z_1[j + number_of_points])
+#
+#             X.append(this)
+#             y.append(classification0[j + number_of_points])
+# lda3.fit(X, y)
+
+lda = []
+for i in range(len(classes)):
+    X = []
+    y = []
+    if i == len(classes) - 1:
+        for j in range(total_length):
+            if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+                this = []
+
+                if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+                        classes[0]:
+                    this.append(np.mean(qang[j:j + number_of_points]))
+                    this.append(dqang[j + number_of_points])
+                    this.append(acc_x_0[j + number_of_points])
+                    this.append(acc_y_0[j + number_of_points])
+                    this.append(acc_z_0[j + number_of_points])
+                    this.append(acc_x_1[j + number_of_points])
+                    this.append(acc_y_1[j + number_of_points])
+                    this.append(acc_z_1[j + number_of_points])
+
+                    X.append(this)
+                    y.append(classification0[j + number_of_points])
+
+        # lda[i].fit(X, y)
+    else:
+        # X = []
+        # y = []
+        for j in range(total_length):
+            if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+                this = []
+
+                if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+                        classes[i + 1]:
+                    this.append(np.mean(qang[j:j + number_of_points]))
+                    this.append(dqang[j + number_of_points])
+                    this.append(acc_x_0[j + number_of_points])
+                    this.append(acc_y_0[j + number_of_points])
+                    this.append(acc_z_0[j + number_of_points])
+                    this.append(acc_x_1[j + number_of_points])
+                    this.append(acc_y_1[j + number_of_points])
+                    this.append(acc_z_1[j + number_of_points])
+
+                    X.append(this)
+                    y.append(classification0[j+number_of_points])
+
+    new_lda = LinearDiscriminantAnalysis()
+    new_lda.fit(X, y)
+    lda.append(new_lda)
 
 # computing evaluating data
 out = []
@@ -571,16 +575,16 @@ if number_of_points > 1:
     for i in range(0, len(qang) - number_of_points):
         out.append([np.mean(qang[i:number_of_points + i]),
                     dqang[number_of_points + i],
-                    # acc_x_0[number_of_points + i],
-                    # acc_y_0[number_of_points + i],
+                    acc_x_0[number_of_points + i],
+                    acc_y_0[number_of_points + i],
                     acc_z_0[number_of_points + i],
-                    # acc_x_1[number_of_points + i],
-                    # acc_y_1[number_of_points + i],
+                    acc_x_1[number_of_points + i],
+                    acc_y_1[number_of_points + i],
                     acc_z_1[number_of_points + i]
                     ])
 
 # saving trained LDAs and evaluating data
-save_to_file([lda1, lda2, lda3], 'Data/classifier')
+save_to_file([lda], 'Data/classifier')
 
 
 class Classifier:
@@ -590,64 +594,67 @@ class Classifier:
 
     # classify given values with all available LDAs and returns predicted classes and probabilities
     def classify(self, values):
-        # out_class = []
-        # out_p = []
-        return self.lda.predict(np.array(values).reshape(1, -1))
-        # for l in lda:
-        #     out_class.append(l.predict(np.array(values).reshape(1, -1)))
-        #     out_p.append(max(l.predict_proba(values)))
-        # return [out_class, out_p]
+        out_class = []
+        out_p = []
+        # return self.lda.predict(np.array(values).reshape(1, -1))
+        for l in self.lda:
+            out_class.append(l.predict(np.array(values).reshape(1, -1)))
+            out_p.append(max(max(l.predict_proba(np.array(values).reshape(1, -1)))))
+        return [out_class, out_p]
 
-    def probability(self, values):
-        return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
+    # def probability(self, values):
+    #     return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
 
-c1 = Classifier(lda1)
-c2 = Classifier(lda2)
-c3 = Classifier(lda3)
+# c1 = Classifier(lda1)
+# c2 = Classifier(lda2)
+# c3 = Classifier(lda3)
+
+c = Classifier(lda)
 
 # Predictions
 print('Calculating predictions')
-predictions1 = [c1.classify(value) for value in out]
-predictions2 = [c2.classify(value) for value in out]
-predictions3 = [c3.classify(value) for value in out]
+# predictions1 = [c1.classify(value) for value in out]
+# predictions2 = [c2.classify(value) for value in out]
+# predictions3 = [c3.classify(value) for value in out]
 
-proba1 = [c1.probability(value) for value in out]
-proba2 = [c2.probability(value) for value in out]
-proba3 = [c3.probability(value) for value in out]
+# proba1 = [c1.probability(value) for value in out]
+# proba2 = [c2.probability(value) for value in out]
+# proba3 = [c3.probability(value) for value in out]
+predictions = []
+probabilities = []
+for value in out:
+    [new_prediction, new_probability] = c.classify(value)
+    predictions.append(new_prediction)
+    probabilities.append(new_probability)
 
 state = -1
 state_prediction = []
 state_probability = []
-for i in range(len(predictions1)):
+for value in out:
+    [new_prediction, new_probability] = c.classify(value)
+
     if state == -1:
-        # TODO: here it would be better to make the actual prediction,
-        #  instead of doing it earlier and only reading here
-        new_prediction = predictions1[i]
-        new_probability = proba1[i]
-        if new_probability > confidence_level1:
-            state = new_prediction
-            state_prediction.append(new_prediction)
-            state_probability.append(new_probability)
+        if new_probability[0] > confidence_level[0]:
+            state = new_prediction[0]
+            state_prediction.append(new_prediction[0])
+            state_probability.append(new_probability[0])
         else:
             state_prediction.append(state_prediction[-1])
             state_probability.append(state_probability[-1])
+
     elif state == 1:
-        new_prediction = predictions2[i]
-        new_probability = proba2[i]
-        if new_probability > confidence_level2:
-            state = new_prediction
-            state_prediction.append(new_prediction)
-            state_probability.append(new_probability)
+        if new_probability[1] > confidence_level[1]:
+            state = new_prediction[1]
+            state_prediction.append(new_prediction[1])
+            state_probability.append(new_probability[1])
         else:
             state_prediction.append(state_prediction[-1])
             state_probability.append(state_probability[-1])
     elif state == 0:
-        new_prediction = predictions3[i]
-        new_probability = proba3[i]
-        if new_probability > confidence_level3:
-            state = new_prediction
-            state_prediction.append(new_prediction)
-            state_probability.append(new_probability)
+        if new_probability[2] > confidence_level[2]:
+            state = new_prediction[2]
+            state_prediction.append(new_prediction[2])
+            state_probability.append(new_probability[2])
         else:
             state_prediction.append(state_prediction[-1])
             state_probability.append(state_probability[-1])
@@ -775,35 +782,35 @@ if normal_plot:
     print('IMU 1: {}'.format(imus[imu_1].id))
 
     # plt.figure()
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    fig, ax = plt.subplots(3, 1, sharex=True, sharey=True)
     # print('IMU 2: {}'.format(imus[2].id))
     # plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
-    # for i in range(len(classes)):
-    #     ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
-    #     ax[i].step(t[number_of_points:], [prediction[i] for prediction in predicted_classes])
-    ax1.step(buttons_timestamp, buttons_values)
-    ax1.step(t[number_of_points:], predictions1)
-    ax2.plot(t[number_of_points:], proba1)
-    plt.title('LDA 0')
+    for i in range(len(classes)):
+        ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
+        ax[i].step(t[number_of_points:], [prediction[i] for prediction in predictions])
+    # ax1.step(buttons_timestamp, buttons_values)
+    # ax1.step(t[number_of_points:], predictions1)
+    # ax2.plot(t[number_of_points:], proba1)
+    # plt.title('LDA 0')
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    ax1.step(buttons_timestamp, buttons_values)
-    ax1.step(t[number_of_points:], predictions2)
-    ax2.plot(t[number_of_points:], proba2)
-    plt.title('LDA 1')
+    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    # ax1.step(buttons_timestamp, buttons_values)
+    # ax1.step(t[number_of_points:], predictions2)
+    # ax2.plot(t[number_of_points:], proba2)
+    # plt.title('LDA 1')
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    ax1.step(buttons_timestamp, buttons_values)
-    ax1.step(t[number_of_points:], predictions3)
-    ax2.plot(t[number_of_points:], proba3)
-    plt.title('LDA 2')
+    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    # ax1.step(buttons_timestamp, buttons_values)
+    # ax1.step(t[number_of_points:], predictions3)
+    # ax2.plot(t[number_of_points:], proba3)
+    # plt.title('LDA 2')
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    plt.title('Switching states')
-    ax1.step(t, classification0)
-    ax1.step(t[number_of_points:], state_prediction)
-    ax2.plot(t[number_of_points:], state_probability)
-
+    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+    # plt.title('Switching states')
+    # ax1.step(t, classification0)
+    # ax1.step(t[number_of_points:], state_prediction)
+    # ax2.plot(t[number_of_points:], state_probability)
+    #
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
     fig.canvas.set_window_title('Switching states with temp values')
     ax1.step(temp_t, temp_truth)
