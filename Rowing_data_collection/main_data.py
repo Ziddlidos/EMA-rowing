@@ -26,7 +26,7 @@ from pyquaternion import Quaternion
 
 import json
 
-real_time_plot = True
+real_time_plot = False
 
 # x and y are used to graph results in real time
 size_of_graph = 10000
@@ -141,7 +141,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
 
     def save_data():
         now = datetime.datetime.now()
-        filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'
+        filename = now.strftime('%Y%m%d%H%M%S') + '_' + source + '_data.txt'
         f = open(filename, 'w+')
         # server_timestamp, client_timestamp, msg
         # if IMU, msg = id, quaternions
