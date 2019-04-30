@@ -19,11 +19,11 @@ import threading
 
 # TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 
-extension_current = 10
+extension_current = 8
 flexion_current = 8
-stim_freq = 40
+stim_freq = 50
 stim_pw = 300
 
 connection = True
@@ -287,7 +287,7 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
             # colocando-se pw no canal que se quer estimular
         if stimulation:
             stim.update(this_channels, pw_str, current_str)
-        print(stim_state, current_str)
+        # print(stim_state, current_str)
         if connection:
             # server.send(dict({'state':'Flexão', 'current':current_str}))
             server.send([time.time(), stim_state, current_str])

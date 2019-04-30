@@ -32,15 +32,15 @@ normal_plot = True
 dash_plot = False
 
 number_of_points = 5
-confidence_level = [0.75, 0.75, 0.75]
+confidence_level = [0.6, 0.9, 0.9]
 
 
-imu_forearm_id = 5
-imu_arm_id = 8
+imu_forearm_id = 4
+imu_arm_id = 5
 
 
 initial_time = 60
-total_time = 110
+total_time = 120
 
 # classes = [-1, 1, 0]
 
@@ -56,14 +56,14 @@ total_time = 110
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
-filename = 'Data/lucas_with_accel_01.out'
+# filename = 'Data/lucas_with_accel_01.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -257,7 +257,7 @@ for i in range(len(dqang_up)):
         dqang_last_up_timestamp.append(dqang_up[i].timestamp[-1])
 
 
-classes, trasitions = find_classes_and_transitions(buttons_values)
+classes, trasitions = find_classes_and_transitions(buttons_values, buttons_timestamp, initial_time, total_time)
 
 print('Classes: {}'.format(classes))
 print('Transitions: {}'.format(trasitions))
@@ -464,7 +464,7 @@ for i in range(len(classes)):
     X = []
     y = []
     if i == len(classes) - 1:
-        for j in range(total_length):
+        for j in range(total_length-1):
             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
                 this = []
 
@@ -486,7 +486,7 @@ for i in range(len(classes)):
     else:
         # X = []
         # y = []
-        for j in range(total_length):
+        for j in range(total_length-1):
             if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
                 this = []
 
@@ -512,7 +512,7 @@ for i in range(len(classes)):
 print('Training completed')
 
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier.lda')
+save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier2.lda')
 # confidence_level = scores
 # sys.exit()
 # computing evaluating data

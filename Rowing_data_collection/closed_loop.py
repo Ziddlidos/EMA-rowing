@@ -14,7 +14,7 @@ import math
 import sys
 
 imu_forearm_id = 4
-imu_arm_id = 3
+imu_arm_id = 5
 
 imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)
@@ -26,7 +26,7 @@ command = [0]
 timestamp = [time.time()]
 running = True
 # Load classifier from file
-with open('Data/classifier.lda', 'rb') as f:
+with open('Data/classifier2.lda', 'rb') as f:
     try:
         print('Loading...')
         classifiers = pickle.load(f)
@@ -126,7 +126,7 @@ def stim_thread(client):
         while running:
             # print(address)
             # time.sleep(1)
-            print(command[-1])
+            # print(command[-1])
             if len(command) > filter_size:
                 client.send(np.median(command[-filter_size:]))
             else:
@@ -248,7 +248,7 @@ def control(lda, classes, number_of_points, confidence_level):
             timestamp.append(time.time())
             command.append(result)
 
-            print(result)
+            # print(result)
 
     now = datetime.datetime.now()
     filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'
