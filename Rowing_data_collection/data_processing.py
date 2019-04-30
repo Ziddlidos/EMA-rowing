@@ -236,3 +236,17 @@ def correct_fes_input(button_timestamp, button_state):
                 button_state[j] = 1
             wrong_descend = 0
     return button_state
+
+def find_classes_and_transitions(labels):
+    classes = []
+    transitions = []
+    previous_label = []
+    for label in labels:
+        if label not in classes:
+            classes.append(label)
+        if label != previous_label:
+            if [previous_label, label] not in transitions:
+                transitions.append([previous_label, label])
+        previous_label = label
+
+    return classes, transitions[1:]

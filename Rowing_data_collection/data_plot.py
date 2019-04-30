@@ -14,7 +14,8 @@ Date: Feb 25th 2019
 
 import matplotlib.pyplot as plt
 import pickle
-from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input
+from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input, \
+    find_classes_and_transitions
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -33,10 +34,6 @@ dash_plot = False
 number_of_points = 5
 # number_of_points_diff = number_of_points
 # filter_size = 49
-# confidence_level1 = 0.65
-# confidence_level2 = 0.75
-# confidence_level3 = 0.75
-# TODO: automate this
 confidence_level = [0.75, 0.75, 0.75]
 
 
@@ -50,7 +47,7 @@ imu_1 = 1
 initial_time = 60
 total_time = 110
 
-classes = [-1, 1, 0]
+# classes = [-1, 1, 0]
 
 
 ###############################################################################################
@@ -258,8 +255,11 @@ for i in range(len(dqang_up)):
         dqang_last_up_timestamp.append(dqang_up[i].timestamp[-1])
 
 
+classes, trasitions = find_classes_and_transitions(buttons_values)
 
-
+print('Classes: {}'.format(classes))
+print('Transitions: {}'.format(trasitions))
+# sys.exit()
 
 ###############################################################################################
 ###############################################################################################
@@ -440,8 +440,6 @@ def save_to_file(data, filename):
             pickle.dump(piece_of_data, f)
 
 
-
-
 training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
 training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
 testing_lower_time_table = training_lower_time_table # training_upper_time_table
@@ -456,71 +454,10 @@ testing_upper_time = testing_upper_time_table[trial]
 total_length = len(classification0)
 
 # training
-# lda1 = LinearDiscriminantAnalysis()
-# lda2 = LinearDiscriminantAnalysis()
-# lda3 = LinearDiscriminantAnalysis()
-#
-# X = []
-# y = []
-# for j in range(total_length):
-#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-#         this = []
-#
-#         if classification0[j + number_of_points] == -1 or classification0[j + number_of_points] == 1:
-#             this.append(np.mean(qang[j:j + number_of_points]))
-#             this.append(dqang[j + number_of_points])
-#             this.append(acc_x_0[j + number_of_points])
-#             this.append(acc_y_0[j + number_of_points])
-#             this.append(acc_z_0[j + number_of_points])
-#             this.append(acc_x_1[j + number_of_points])
-#             this.append(acc_y_1[j + number_of_points])
-#             this.append(acc_z_1[j + number_of_points])
-#
-#             X.append(this)
-#             y.append(classification0[j + number_of_points])
-# lda1.fit(X, y)
-#
-# X = []
-# y = []
-# for j in range(total_length):
-#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-#         this = []
-#
-#         if classification0[j + number_of_points] == 1 or classification0[j + number_of_points] == 0:
-#             this.append(np.mean(qang[j:j + number_of_points]))
-#             this.append(dqang[j + number_of_points])
-#             this.append(acc_x_0[j + number_of_points])
-#             this.append(acc_y_0[j + number_of_points])
-#             this.append(acc_z_0[j + number_of_points])
-#             this.append(acc_x_1[j + number_of_points])
-#             this.append(acc_y_1[j + number_of_points])
-#             this.append(acc_z_1[j + number_of_points])
-#
-#             X.append(this)
-#             y.append(classification0[j + number_of_points])
-# lda2.fit(X, y)
-#
-# X = []
-# y = []
-# for j in range(total_length):
-#     if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-#         this = []
-#
-#         if classification0[j + number_of_points] == 0 or classification0[j + number_of_points] == -1:
-#             this.append(np.mean(qang[j:j + number_of_points]))
-#             this.append(dqang[j + number_of_points])
-#             # this.append(acc_x_0[j + number_of_points])
-#             # this.append(acc_y_0[j + number_of_points])
-#             this.append(acc_z_0[j + number_of_points])
-#             # this.append(acc_x_1[j + number_of_points])
-#             # this.append(acc_y_1[j + number_of_points])
-#             this.append(acc_z_1[j + number_of_points])
-#
-#             X.append(this)
-#             y.append(classification0[j + number_of_points])
-# lda3.fit(X, y)
-
+print('Training')
 lda = []
+decision_functions = []
+scores = []
 for i in range(len(classes)):
     X = []
     y = []
@@ -565,9 +502,14 @@ for i in range(len(classes)):
                     X.append(this)
                     y.append(classification0[j+number_of_points])
 
-    new_lda = LinearDiscriminantAnalysis()
+    new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=None)
     new_lda.fit(X, y)
+    decision_functions.append(new_lda.decision_function(X))
+    scores.append(new_lda.score(X, y))
     lda.append(new_lda)
+print('Training completed')
+
+# confidence_level = scores
 
 # computing evaluating data
 out = []
@@ -628,48 +570,25 @@ for value in out:
     probabilities.append(new_probability)
 
 state = -1
-state_prediction = []
-state_probability = []
+state_prediction = [0]
+state_probability = [0]
 for value in out:
     [new_prediction, new_probability] = c.classify(value)
 
-    if state == -1:
-        if new_probability[0] > confidence_level[0]:
-            state = new_prediction[0]
-            state_prediction.append(new_prediction[0])
-            state_probability.append(new_probability[0])
-        else:
-            state_prediction.append(state_prediction[-1])
-            state_probability.append(state_probability[-1])
+    for s in classes:
+        if state == s:
+            i = classes.index(s)
+            if new_probability[i] > confidence_level[i]:
+                state = new_prediction[i]
+                state_prediction.append(new_prediction[i])
+                state_probability.append(new_probability[i])
+            else:
+                state_prediction.append(state_prediction[-1])
+                state_probability.append(state_probability[-1])
+            break
+state_prediction.pop(0)
+state_probability.pop(0)
 
-    elif state == 1:
-        if new_probability[1] > confidence_level[1]:
-            state = new_prediction[1]
-            state_prediction.append(new_prediction[1])
-            state_probability.append(new_probability[1])
-        else:
-            state_prediction.append(state_prediction[-1])
-            state_probability.append(state_probability[-1])
-    elif state == 0:
-        if new_probability[2] > confidence_level[2]:
-            state = new_prediction[2]
-            state_prediction.append(new_prediction[2])
-            state_probability.append(new_probability[2])
-        else:
-            state_prediction.append(state_prediction[-1])
-            state_probability.append(state_probability[-1])
-
-
-
-    # predicted_classes = []
-# predicted_probabilities = []
-# for values in out:
-#     [out_class, out_p] = c.classify(np.array(values).reshape(1, -1))
-#     predicted_classes.append(out_class)
-#     predicted_probabilities.append(out_p)
-
-# predicted_values = classifier.predict(out)
-# predicted_values = medfilt(predicted_values, filter_size)
 print('Predictions calculated')
 
 # scores = classifier.decision_function(X)
@@ -677,24 +596,6 @@ print('Predictions calculated')
 # probability = [max(i) for i in predicted_proba]
 
 
-# trusted_t = []
-# trusted_predictions = []
-# trusted_classifcation = []
-# # all_probabilities = [[],[],[]]
-# for i in range(len(predicted_classes)):
-#     this_classification = classification0[i]
-#     for j in range(len(classes)):
-#         if this_classification == predicted_classes[i][j]:
-#             if probability[i] > confidence_level:
-#                 trusted_t.append(t[i + number_of_points])
-#                 trusted_predictions.append(predicted_values[i])
-#                 trusted_classifcation.append(classification0[i])
-#     if this_classification == predicted_classes[i]:
-#         all_probabilities[0].append(probability[i])
-#     elif this_classification == 0:
-#         all_probabilities[1].append(probability[i])
-#     elif this_classification == 1:
-#         all_probabilities[2].append(probability[i])
 
 
 # print('Probabilities: ')
