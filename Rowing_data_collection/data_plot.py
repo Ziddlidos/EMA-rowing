@@ -32,17 +32,12 @@ normal_plot = True
 dash_plot = False
 
 number_of_points = 5
-# number_of_points_diff = number_of_points
-# filter_size = 49
 confidence_level = [0.75, 0.75, 0.75]
 
 
 imu_forearm_id = 5
 imu_arm_id = 8
 
-imu_0 = 0
-# imu_1 = 2
-imu_1 = 1
 
 initial_time = 60
 total_time = 110
@@ -94,6 +89,13 @@ print('Variables loaded: ', var_names)
 # Assign variables
 [buttons_timestamp, buttons_values] = [data['buttons_timestamp'], data['buttons_values']]
 imus = data['imus']
+if imus[0].id == imu_forearm_id:
+    imu_0 = 0
+    imu_1 = 1
+else:
+    imu_1 = 0
+    imu_0 = 1
+
 # [emg_1_timestamp, emg_1_values] = [data['emg_1_timestamp'], data['emg_1_values']]
 # [emg_2_timestamp, emg_2_values] = [data['emg_2_timestamp'], data['emg_2_values']]
 
@@ -509,8 +511,10 @@ for i in range(len(classes)):
     lda.append(new_lda)
 print('Training completed')
 
+# saving trained LDAs and evaluating data
+save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier.lda')
 # confidence_level = scores
-
+# sys.exit()
 # computing evaluating data
 out = []
 if number_of_points > 1:
@@ -525,24 +529,10 @@ if number_of_points > 1:
                     acc_z_1[number_of_points + i]
                     ])
 
-# saving trained LDAs and evaluating data
-save_to_file([lda], 'Data/classifier')
 
 
-class Classifier:
 
-    def __init__(self, lda):
-        self.lda = lda
 
-    # classify given values with all available LDAs and returns predicted classes and probabilities
-    def classify(self, values):
-        out_class = []
-        out_p = []
-        # return self.lda.predict(np.array(values).reshape(1, -1))
-        for l in self.lda:
-            out_class.append(l.predict(np.array(values).reshape(1, -1)))
-            out_p.append(max(max(l.predict_proba(np.array(values).reshape(1, -1)))))
-        return [out_class, out_p]
 
     # def probability(self, values):
     #     return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
@@ -555,13 +545,6 @@ c = Classifier(lda)
 
 # Predictions
 print('Calculating predictions')
-# predictions1 = [c1.classify(value) for value in out]
-# predictions2 = [c2.classify(value) for value in out]
-# predictions3 = [c3.classify(value) for value in out]
-
-# proba1 = [c1.probability(value) for value in out]
-# proba2 = [c2.probability(value) for value in out]
-# proba3 = [c3.probability(value) for value in out]
 predictions = []
 probabilities = []
 for value in out:
@@ -661,11 +644,7 @@ for i in range(len(state_prediction)):
         temp_truth.append(classification0[i+number_of_points])
         temp_prediction.append(state_prediction[i])
 print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
-print('##########################################################################################\n\n\n\n')
-
-
-print('\n')
-
+print('##########################################################################################\n')
 
 ###############################################################################################
 ###############################################################################################

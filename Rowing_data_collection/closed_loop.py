@@ -6,6 +6,7 @@ from multiprocessing.connection import Listener
 import time
 import datetime
 from data_processing import IMU, calculate_accel
+from data_classification import Classifier
 import numpy as np
 from scipy.signal import medfilt
 from pyquaternion import Quaternion
@@ -18,28 +19,31 @@ imu_arm_id = 3
 imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)
 
-number_of_points = 50
+# number_of_points = 50
 filter_size = 29
 
 command = [0]
 timestamp = [time.time()]
 running = True
 # Load classifier from file
-with open('Data/classifier', 'rb') as f:
+with open('Data/classifier.lda', 'rb') as f:
     try:
         print('Loading...')
-        X = pickle.load(f)
-        y = pickle.load(f)
-        # out = pickle.load(f)
+        classifiers = pickle.load(f)
+        classes = pickle.load(f)
+        number_of_points = pickle.load(f)
+        confidence_level = pickle.load(f)
+        # Override confidence_level if desired
+        # confidence_level = [0.75, 0.75, 0.75]
         print('Loading complete')
 
     except EOFError:
         print('Loading complete')
 
-print('Learning...')
-classifier = LinearDiscriminantAnalysis()
-classifier.fit(X, y)
-print('Learning complete')
+# print('Learning...')
+# classifier = LinearDiscriminantAnalysis()
+# classifier.fit(X, y)
+# print('Learning complete')
 # predicted_values = classifier.predict(out)
 
 # mpl.plot(predicted_values)
@@ -178,12 +182,20 @@ def angle(q):
         print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))
 
 
-def control():
-    global imu_forearm, imu_arm, classifier, command
+def control(lda, classes, number_of_points, confidence_level):
+    global imu_forearm, imu_arm, command
     print('Starting control')
     source = 'control'
     angles = []
     q = []
+    predictions = []
+    probabilities = []
+    state = -1
+    state_prediction = [0]
+    state_probability = [0]
+
+    c = Classifier(lda)
+
     while not len(imu_arm.x_values) > number_of_points + 1 or not len(imu_forearm.x_values) > number_of_points + 1:
         pass
     while running:
@@ -205,29 +217,34 @@ def control():
 
             out.append([np.mean(angles[-number_of_points:]),
                         np.diff(angles[-number_of_points:])[-1],
-                        calculate_accel(imu_forearm.acc_x, imu_forearm.acc_y, imu_forearm.acc_z, -1)
+                        imu_forearm.acc_x[-1],
+                        imu_forearm.acc_y[-1],
+                        imu_forearm.acc_z[-1],
+                        imu_arm.acc_x[-1],
+                        imu_arm.acc_y[-1],
+                        imu_arm.acc_z[-1]
                         ])
 
-            # quaternions
-            # out = out + imu_forearm.x_values[-number_of_points:]
-            # out = out + imu_arm.x_values[-number_of_points:]
-            # out = out + imu_forearm.y_values[-number_of_points:]
-            # out = out + imu_arm.y_values[-number_of_points:]
-            # out = out + imu_forearm.z_values[-number_of_points:]
-            # out = out + imu_arm.z_values[-number_of_points:]
-            # out = out + imu_forearm.w_values[-number_of_points:]
-            # out = out + imu_arm.w_values[-number_of_points:]
-            # out = out + list(np.diff(imu_forearm.x_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_arm.x_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_forearm.y_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_arm.y_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_forearm.z_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_arm.z_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_forearm.w_values[-number_of_points - 1:]))
-            # out = out + list(np.diff(imu_arm.w_values[-number_of_points - 1:]))
-
             # print(out)
-            result = classifier.predict(np.array(out).reshape(1, -1))
+            [new_prediction, new_probability] = c.classify(np.array(out).reshape(1, -1))
+            predictions.append(new_prediction)
+            probabilities.append(new_probability)
+            # result = classifier.predict(np.array(out).reshape(1, -1))
+
+            for s in classes:
+                if state == s:
+                    i = classes.index(s)
+                    if new_probability[i] > confidence_level[i]:
+                        state = new_prediction[i]
+                        state_prediction.append(new_prediction[i])
+                        state_probability.append(new_probability[i])
+                    else:
+                        state_prediction.append(state_prediction[-1])
+                        state_probability.append(state_probability[-1])
+                    break
+
+            result = state_prediction[-1]
+
             timestamp.append(time.time())
             command.append(result)
 
@@ -269,7 +286,7 @@ def server(address, port):
 
 
 if __name__ == '__main__':
-    control_loop = threading.Thread(target=control)
+    control_loop = threading.Thread(target=control, args=(classifiers, classes, number_of_points, confidence_level))
     control_loop.start()
     server = threading.Thread(target=server, args=('', 50001))
     server.start()

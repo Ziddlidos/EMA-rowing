@@ -40,7 +40,7 @@ For closed loop
 7 - Follow sound cues. One sound starts extensions, the other starts flexion. (If not using Android version)
 8 - It stops after total_time (If not using Android version)
 9 - stops scripts in reverse order
-10 - run data_analysis.py
+10 - run data_store.py
 11 - run data_plot.py (set parameters)
 12 - run closed_loop.py (set parameters)
 13 - run imu_data.py

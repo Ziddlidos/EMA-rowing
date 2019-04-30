@@ -11,6 +11,20 @@ class Cdata:
         self.timestamp = []
         self.values = []
 
+class Classifier:
+
+    def __init__(self, lda):
+        self.lda = lda
+
+    # classify given values with all available LDAs and returns predicted classes and probabilities
+    def classify(self, values):
+        import numpy as np
+        out_class = []
+        out_probability = []
+        for l in self.lda:
+            out_class.append(l.predict(np.array(values).reshape(1, -1)))
+            out_probability.append(max(max(l.predict_proba(np.array(values).reshape(1, -1)))))
+        return [out_class, out_probability]
 
 # Classify data according to which button was beeing pressed at that instant
 # Returns 3 lists of Cdatas. One for each classification
