@@ -15,11 +15,11 @@ Date: Feb 25th 2019
 import matplotlib.pyplot as plt
 import pickle
 from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input, \
-    find_classes_and_transitions
+    find_classes_and_transitions, lpf, median_filter
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 import numpy as np
 from scipy.signal import medfilt
 import logging
@@ -32,7 +32,13 @@ normal_plot = True
 dash_plot = False
 
 number_of_points = 5
-confidence_level = [0.6, 0.9, 0.9]
+confidence_level = [0.75, 0.9, 0.9]
+
+# accel filter
+filter_acc = True
+cutoff = 0.5
+fs = 50
+filter_size = 29
 
 
 imu_forearm_id = 4
@@ -56,14 +62,15 @@ total_time = 120
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-app = QApplication(sys.argv)
-source_file = GetFilesToLoad()
-app.processEvents()
-filename = source_file.filename[0][0]
+# app = QApplication(sys.argv)
+# source_file = GetFilesToLoad()
+# app.processEvents()
+# filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
 # filename = 'Data/lucas_with_accel_01.out'
+filename = 'Data/roberto_03.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -261,6 +268,23 @@ classes, trasitions = find_classes_and_transitions(buttons_values, buttons_times
 
 print('Classes: {}'.format(classes))
 print('Transitions: {}'.format(trasitions))
+
+# acc_x_0_filtered = lpf(np.array(acc_x_0), cutoff, fs)
+# acc_y_0_filtered = lpf(np.array(acc_y_0), cutoff, fs)
+# acc_z_0_filtered = lpf(np.array(acc_z_0), cutoff, fs)
+# acc_x_1_filtered = lpf(np.array(acc_x_1), cutoff, fs)
+# acc_y_1_filtered = lpf(np.array(acc_y_1), cutoff, fs)
+# acc_z_1_filtered = lpf(np.array(acc_z_1), cutoff, fs)
+
+
+acc_x_0_filtered = medfilt(acc_x_0, filter_size)
+acc_y_0_filtered = medfilt(acc_y_0, filter_size)
+acc_z_0_filtered = medfilt(acc_z_0, filter_size)
+acc_x_1_filtered = medfilt(acc_x_1, filter_size)
+acc_y_1_filtered = medfilt(acc_y_1, filter_size)
+acc_z_1_filtered = medfilt(acc_z_1, filter_size)
+
+
 # sys.exit()
 
 ###############################################################################################
@@ -297,12 +321,12 @@ ax4.set_yticks([-1, 0, 1])
 ax4.legend()
 ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
 
-ax5.plot(t, np.array(acc_x_0) + 1, 'b', label='x')
-ax5.plot(t, acc_y_0, 'b', label='y')
-ax5.plot(t, np.array(acc_z_0) - 1, 'b', label='z')
-ax5.plot(t, np.array(acc_x_1) + 1, 'g', label='x')
-ax5.plot(t, acc_y_1, 'g', label='y')
-ax5.plot(t, np.array(acc_z_1) - 1, 'g', label='z')
+ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
+ax5.plot(t, acc_y_0_filtered, 'b', label='y')
+ax5.plot(t, np.array(acc_z_0_filtered) - 1, 'b', label='z')
+ax5.plot(t, np.array(acc_x_1_filtered) + 1, 'g', label='x')
+ax5.plot(t, acc_y_1_filtered, 'g', label='y')
+ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
 ax5.set_title('Accel')
 ax5.legend()
 ax5.set_ylabel('g')
@@ -460,6 +484,12 @@ print('Training')
 lda = []
 decision_functions = []
 scores = []
+xs = []
+ys = []
+new_xs = []
+
+plt.figure('LDA evaluation')
+
 for i in range(len(classes)):
     X = []
     y = []
@@ -472,12 +502,12 @@ for i in range(len(classes)):
                         classes[0]:
                     this.append(np.mean(qang[j:j + number_of_points]))
                     this.append(dqang[j + number_of_points])
-                    this.append(acc_x_0[j + number_of_points])
-                    this.append(acc_y_0[j + number_of_points])
-                    this.append(acc_z_0[j + number_of_points])
-                    this.append(acc_x_1[j + number_of_points])
-                    this.append(acc_y_1[j + number_of_points])
-                    this.append(acc_z_1[j + number_of_points])
+                    this.append(acc_x_0_filtered[j + number_of_points])
+                    this.append(acc_y_0_filtered[j + number_of_points])
+                    this.append(acc_z_0_filtered[j + number_of_points])
+                    this.append(acc_x_1_filtered[j + number_of_points])
+                    this.append(acc_y_1_filtered[j + number_of_points])
+                    this.append(acc_z_1_filtered[j + number_of_points])
 
                     X.append(this)
                     y.append(classification0[j + number_of_points])
@@ -494,22 +524,44 @@ for i in range(len(classes)):
                         classes[i + 1]:
                     this.append(np.mean(qang[j:j + number_of_points]))
                     this.append(dqang[j + number_of_points])
-                    this.append(acc_x_0[j + number_of_points])
-                    this.append(acc_y_0[j + number_of_points])
-                    this.append(acc_z_0[j + number_of_points])
-                    this.append(acc_x_1[j + number_of_points])
-                    this.append(acc_y_1[j + number_of_points])
-                    this.append(acc_z_1[j + number_of_points])
+                    this.append(acc_x_0_filtered[j + number_of_points])
+                    this.append(acc_y_0_filtered[j + number_of_points])
+                    this.append(acc_z_0_filtered[j + number_of_points])
+                    this.append(acc_x_1_filtered[j + number_of_points])
+                    this.append(acc_y_1_filtered[j + number_of_points])
+                    this.append(acc_z_1_filtered[j + number_of_points])
 
                     X.append(this)
                     y.append(classification0[j+number_of_points])
 
-    new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=None)
-    new_lda.fit(X, y)
+    new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=[0.6, 0.4])
+    # new_lda = QuadraticDiscriminantAnalysis(store_covariance=True, priors=None)
+    new_x = new_lda.fit_transform(X, y)
+    # new_lda.fit(X, y)
+    xs.append(X)
+    ys.append(y)
+    new_xs.append(new_x)
     decision_functions.append(new_lda.decision_function(X))
     scores.append(new_lda.score(X, y))
     lda.append(new_lda)
+
+    # new_x_0 = new_x[y == min(y)]
+    # new_x_1 = new_x[y == max(y)]
+
+    splot = plt.subplot(3, 1, i+1)
+    plt.title('LDA {}'.format(i))
+
+    plt.scatter(new_x, y)
+    # plt.scatter(np.array(X)[:, 0], np.array(y) + 3)
+    plt.ylim([-2, 2])
+
+print('scores: {}'.format(scores))
+# plt.show()
 print('Training completed')
+# exit()
+
+confidence_level = np.array([1.5, 1.5, 1.5]) - scores
+# confidence_level = [0.5, 0.5, 0.5]
 
 # saving trained LDAs and evaluating data
 save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier2.lda')
@@ -519,15 +571,28 @@ save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifie
 out = []
 if number_of_points > 1:
     for i in range(0, len(qang) - number_of_points):
-        out.append([np.mean(qang[i:number_of_points + i]),
-                    dqang[number_of_points + i],
-                    acc_x_0[number_of_points + i],
-                    acc_y_0[number_of_points + i],
-                    acc_z_0[number_of_points + i],
-                    acc_x_1[number_of_points + i],
-                    acc_y_1[number_of_points + i],
-                    acc_z_1[number_of_points + i]
-                    ])
+        out.append([
+            np.mean(qang[i:number_of_points + i]),
+            dqang[number_of_points + i],
+            medfilt(acc_x_0[i:number_of_points + i], filter_size)[-1],
+            medfilt(acc_y_0[i:number_of_points + i], filter_size)[-1],
+            medfilt(acc_z_0[i:number_of_points + i], filter_size)[-1],
+            medfilt(acc_x_1[i:number_of_points + i], filter_size)[-1],
+            medfilt(acc_y_1[i:number_of_points + i], filter_size)[-1],
+            medfilt(acc_z_1[i:number_of_points + i], filter_size)[-1]
+            # lpf(acc_x_0[i:number_of_points + i], cutoff, fs)[-1],
+            # lpf(acc_y_0[i:number_of_points + i], cutoff, fs)[-1],
+            # lpf(acc_z_0[i:number_of_points + i], cutoff, fs)[-1],
+            # lpf(acc_x_1[i:number_of_points + i], cutoff, fs)[-1],
+            # lpf(acc_y_1[i:number_of_points + i], cutoff, fs)[-1],
+            # lpf(acc_z_1[i:number_of_points + i], cutoff, fs)[-1]
+            # acc_x_0[number_of_points + i],
+            # acc_y_0[number_of_points + i],
+            # acc_z_0[number_of_points + i],
+            # acc_x_1[number_of_points + i],
+            # acc_y_1[number_of_points + i],
+            # acc_z_1[number_of_points + i]
+            ])
 
 
 
@@ -555,6 +620,9 @@ for value in out:
 state = -1
 state_prediction = [0]
 state_probability = [0]
+
+
+
 for value in out:
     [new_prediction, new_probability] = c.classify(value)
 
