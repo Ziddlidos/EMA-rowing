@@ -35,7 +35,8 @@ mode = 'switchingLDA'
 normal_plot = True
 dash_plot = False
 
-number_of_points = 149
+# number_of_points = 149
+window_size = 1
 if mode == 'singleLDA':
     confidence_level = [0.85]
 else:
@@ -73,15 +74,15 @@ accel_threshold = 0.05
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-app = QApplication(sys.argv)
-source_file = GetFilesToLoad()
-app.processEvents()
-filename = source_file.filename[0][0]
+# app = QApplication(sys.argv)
+# source_file = GetFilesToLoad()
+# app.processEvents()
+# filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
 # filename = 'Data/lucas_with_accel_01.out'
-# filename = 'Data/roberto_03.out'
+filename = 'Data/roberto_03.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -118,6 +119,7 @@ else:
 # [emg_2_timestamp, emg_2_values] = [data['emg_2_timestamp'], data['emg_2_values']]
 
 print('Resampling and synchronizing...')
+
 [t, imus[imu_0].resampled_x, imus[imu_1].resampled_x] = resample_series(imus[imu_0].timestamp,
                                                                         imus[imu_0].x_values,
                                                                         imus[imu_1].timestamp,
@@ -146,8 +148,9 @@ print('Resampling and synchronizing...')
                                                                                 imus[imu_0].acc_z,
                                                                                 imus[imu_1].timestamp,
                                                                                 imus[imu_1].acc_z)
-
-print('Resampling done')
+avg_f = len(t) / (t[-1] - t[0])
+print('Average frequency: {}'.format(avg_f))
+number_of_points = round(avg_f * window_size)
 
 
 def make_quaternions(imu):
@@ -863,7 +866,7 @@ for i in range(len(output_command)):
         temp_truth.append(classification0[i+number_of_points])
         temp_prediction.append(output_command[i])
 print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
-print('##########################################################################################\n')
+print('##########################################################################################')
 
 ###############################################################################################
 ###############################################################################################
@@ -877,8 +880,8 @@ print('#########################################################################
 # Plots
 if normal_plot:
     print('Plotting...')
-    print('IMU 0: {}'.format(imus[imu_0].id))
-    print('IMU 1: {}'.format(imus[imu_1].id))
+    # print('IMU 0: {}'.format(imus[imu_0].id))
+    # print('IMU 1: {}'.format(imus[imu_1].id))
 
     if mode == 'switchingLDA':
         # plt.figure()
@@ -942,6 +945,12 @@ if normal_plot:
     # plt.switch_backend('Qt5Agg')
     # figManager = plt.get_current_fig_manager()
     # figManager.window.showMaximized()
+
+    fig = plt.figure('Frequency analysis')
+    plt.plot(t[1:], 1/np.diff(t))
+    plt.plot(t[1:], medfilt(1/np.diff(t), 25))
+    # print('Average frequency: {}'.format(len(t)/(t[-1]-t[1])))
+
     plt.show()
 
 
