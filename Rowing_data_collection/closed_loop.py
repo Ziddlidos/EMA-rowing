@@ -13,6 +13,10 @@ from pyquaternion import Quaternion
 import math
 import sys
 
+mode = 'singleLDA'
+# mode = 'switchingLDA'
+# mode = 'manual'
+
 imu_forearm_id = 4
 imu_arm_id = 5
 
@@ -216,13 +220,13 @@ def control(lda, classes, number_of_points, confidence_level):
             # out = out + list(np.diff(angles[-number_of_points - 1:]))
 
             out.append([np.mean(angles[-number_of_points:]),
-                        np.diff(angles[-number_of_points:])[-1],
-                        imu_forearm.acc_x[-1],
-                        imu_forearm.acc_y[-1],
-                        imu_forearm.acc_z[-1],
-                        imu_arm.acc_x[-1],
-                        imu_arm.acc_y[-1],
-                        imu_arm.acc_z[-1]
+                        np.mean(np.diff(angles[-number_of_points:])),
+                        np.mean(imu_forearm.acc_x[-number_of_points:]),
+                        np.mean(imu_forearm.acc_y[-number_of_points:]),
+                        np.mean(imu_forearm.acc_z[-number_of_points:]),
+                        np.mean(imu_arm.acc_x[-number_of_points:]),
+                        np.mean(imu_arm.acc_y[-number_of_points:]),
+                        np.mean(imu_arm.acc_z[-number_of_points:])
                         ])
 
             # print(out)
@@ -231,20 +235,45 @@ def control(lda, classes, number_of_points, confidence_level):
             probabilities.append(new_probability)
             # result = classifier.predict(np.array(out).reshape(1, -1))
 
-            for s in classes:
-                if state == s:
-                    i = classes.index(s)
-                    if new_probability[i] > confidence_level[i]:
-                        state = new_prediction[i]
-                        state_prediction.append(new_prediction[i])
-                        state_probability.append(new_probability[i])
-                    else:
-                        state_prediction.append(state_prediction[-1])
-                        state_probability.append(state_probability[-1])
-                    break
+            if mode  == 'switchingLDA':
+                for s in classes:
+                    if state == s:
+                        i = classes.index(s)
+                        if new_probability[i] > confidence_level[i]:
+                            state = new_prediction[i]
+                            state_prediction.append(new_prediction[i])
+                            state_probability.append(new_probability[i])
+                        else:
+                            state_prediction.append(state_prediction[-1])
+                            state_probability.append(state_probability[-1])
+                        break
+
+            elif mode == 'singleLDA':
+                if new_probability[0] > confidence_level[0]:
+                    state_prediction.append(new_prediction[0])
+                    state_probability.append(new_probability[0])
+                else:
+                    state_prediction.append(state_prediction[-1])
+                    state_probability.append(state_probability[-1])
+
+            elif mode == 'manual':
+                if state == -1 and (out[0][2] > 0.05):  # and value[5] > 0.25):
+                    state = 1
+                    state_prediction.append(state)
+                    state_probability.append(1)
+                elif state == 1 and out[0][0] > 90 and out[0][1] < 0:
+                    state = 0
+                    state_prediction.append(state)
+                    state_probability.append(1)
+                elif state == 0 and out[0][0] < 15:
+                    state = -1
+                    state_prediction.append(state)
+                    state_probability.append(1)
+                else:
+                    state_prediction.append(state_prediction[-1])
+                    state_probability.append(state_probability[-1])
 
             result = state_prediction[-1]
-
             timestamp.append(time.time())
             command.append(result)
 

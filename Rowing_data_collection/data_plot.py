@@ -26,27 +26,38 @@ import logging
 import math
 from pyquaternion import Quaternion
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.patches import Ellipse
 
+# mode = 'singleLDA'
+mode = 'switchingLDA'
+# mode = 'manual'
 
 normal_plot = True
 dash_plot = False
 
-number_of_points = 5
-confidence_level = [0.75, 0.9, 0.9]
+number_of_points = 149
+if mode == 'singleLDA':
+    confidence_level = [0.85]
+else:
+    confidence_level = [0.5, 0.5, 0.5]
 
 # accel filter
 filter_acc = True
 cutoff = 0.5
 fs = 50
-filter_size = 29
+filter_size = 3
+output_command_filter_size = 1
+number_of_stds = 3
 
 
 imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 60
-total_time = 120
+initial_time = 110
+total_time = 160
+
+accel_threshold = 0.05
 
 # classes = [-1, 1, 0]
 
@@ -62,15 +73,15 @@ total_time = 120
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
 # filename = 'Data/lucas_with_accel_01.out'
-filename = 'Data/roberto_03.out'
+# filename = 'Data/roberto_03.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -275,8 +286,6 @@ print('Transitions: {}'.format(trasitions))
 # acc_x_1_filtered = lpf(np.array(acc_x_1), cutoff, fs)
 # acc_y_1_filtered = lpf(np.array(acc_y_1), cutoff, fs)
 # acc_z_1_filtered = lpf(np.array(acc_z_1), cutoff, fs)
-
-
 acc_x_0_filtered = medfilt(acc_x_0, filter_size)
 acc_y_0_filtered = medfilt(acc_y_0, filter_size)
 acc_z_0_filtered = medfilt(acc_z_0, filter_size)
@@ -321,12 +330,12 @@ ax4.set_yticks([-1, 0, 1])
 ax4.legend()
 ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
 
-ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
-ax5.plot(t, acc_y_0_filtered, 'b', label='y')
-ax5.plot(t, np.array(acc_z_0_filtered) - 1, 'b', label='z')
-ax5.plot(t, np.array(acc_x_1_filtered) + 1, 'g', label='x')
-ax5.plot(t, acc_y_1_filtered, 'g', label='y')
-ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
+# ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
+# ax5.plot(t, acc_y_0_filtered, 'b', label='y')
+ax5.plot(t, np.array(acc_z_0_filtered), 'b', label='z')
+# ax5.plot(t, np.array(acc_x_1_filtered), 'g', label='x')
+# ax5.plot(t, acc_y_1_filtered, 'g', label='y')
+# ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
 ax5.set_title('Accel')
 ax5.legend()
 ax5.set_ylabel('g')
@@ -393,7 +402,7 @@ plt.title('Low - Zero - Up')
 # plt.legend()
 
 
-plt.figure('Slow - Feature crossing')
+plt.figure('Feature crossing')
 plt.title('Angle avg x diff')
 plt.plot(qang_avg_low[0:round(len(qang_low)/div_factor)], dqang_last_low[0:round(len(qang_low)/div_factor)], 'b.')
 plt.plot(qang_avg_zero[0:round(len(qang_zero)/div_factor)], dqang_last_zero[0:round(len(qang_zero)/div_factor)], 'k.')
@@ -488,98 +497,207 @@ xs = []
 ys = []
 new_xs = []
 
-plt.figure('LDA evaluation')
+X = []
+y = []
 
-for i in range(len(classes)):
-    X = []
-    y = []
-    if i == len(classes) - 1:
-        for j in range(total_length-1):
-            if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-                this = []
+if mode == 'singleLDA':
+    for j in range(total_length - 1):
+        if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+            this = []
+            this.append(np.mean(qang[j:j + number_of_points]))
+            this.append(np.mean(dqang[j:j + number_of_points]))
+            this.append(np.mean(acc_x_0_filtered[j:j + number_of_points]))
+            this.append(np.mean(acc_y_0_filtered[j:j + number_of_points]))
+            this.append(np.mean(acc_z_0_filtered[j:j + number_of_points]))
+            this.append(np.mean(acc_x_1_filtered[j:j + number_of_points]))
+            this.append(np.mean(acc_y_1_filtered[j:j + number_of_points]))
+            this.append(np.mean(acc_z_1_filtered[j:j + number_of_points]))
+            # this.append(acc_x_0[j + number_of_points])
+            # this.append(acc_y_0[j + number_of_points])
+            # this.append(acc_z_0[j + number_of_points])
+            # this.append(acc_x_1[j + number_of_points])
+            # this.append(acc_y_1[j + number_of_points])
+            # this.append(acc_z_1[j + number_of_points])
 
-                if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
-                        classes[0]:
-                    this.append(np.mean(qang[j:j + number_of_points]))
-                    this.append(dqang[j + number_of_points])
-                    this.append(acc_x_0_filtered[j + number_of_points])
-                    this.append(acc_y_0_filtered[j + number_of_points])
-                    this.append(acc_z_0_filtered[j + number_of_points])
-                    this.append(acc_x_1_filtered[j + number_of_points])
-                    this.append(acc_y_1_filtered[j + number_of_points])
-                    this.append(acc_z_1_filtered[j + number_of_points])
-
-                    X.append(this)
-                    y.append(classification0[j + number_of_points])
-
-        # lda[i].fit(X, y)
-    else:
-        # X = []
-        # y = []
-        for j in range(total_length-1):
-            if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
-                this = []
-
-                if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
-                        classes[i + 1]:
-                    this.append(np.mean(qang[j:j + number_of_points]))
-                    this.append(dqang[j + number_of_points])
-                    this.append(acc_x_0_filtered[j + number_of_points])
-                    this.append(acc_y_0_filtered[j + number_of_points])
-                    this.append(acc_z_0_filtered[j + number_of_points])
-                    this.append(acc_x_1_filtered[j + number_of_points])
-                    this.append(acc_y_1_filtered[j + number_of_points])
-                    this.append(acc_z_1_filtered[j + number_of_points])
-
-                    X.append(this)
-                    y.append(classification0[j+number_of_points])
-
-    new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=[0.6, 0.4])
-    # new_lda = QuadraticDiscriminantAnalysis(store_covariance=True, priors=None)
+            X.append(this)
+            y.append(classification0[j + number_of_points])
+    # new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=[0.6, 0.4])
+    new_lda = LinearDiscriminantAnalysis(store_covariance=True)
+    # # new_lda = QuadraticDiscriminantAnalysis(store_covariance=True, priors=None)
     new_x = new_lda.fit_transform(X, y)
-    # new_lda.fit(X, y)
+    # # new_lda.fit(X, y)
     xs.append(X)
     ys.append(y)
     new_xs.append(new_x)
-    decision_functions.append(new_lda.decision_function(X))
+    # decision_functions.append(new_lda.decision_function(X))
     scores.append(new_lda.score(X, y))
     lda.append(new_lda)
+    #
+    # new_x_0 = new_x[np.array(y) == min(y)]
+    # new_y_0 = np.array(y)[np.array(y) == min(y)]
+    # new_x_1 = new_x[np.array(y) == max(y)]
+    # new_y_1 = np.array(y)[np.array(y) == max(y)]
 
-    # new_x_0 = new_x[y == min(y)]
-    # new_x_1 = new_x[y == max(y)]
+    x = []
+    x_means = []
+    x_stds = []
+    labels = []
+    for c in classes:
+        x.append(new_x[np.array(y) == c, :])
+        x_means.append([np.mean(x[-1][:, 0]), np.mean(x[-1][:, 1])])
+        x_stds.append([np.std(x[-1][:, 0]), np.std(x[-1][:, 1])])
+        labels.append(str(c))
 
-    splot = plt.subplot(3, 1, i+1)
-    plt.title('LDA {}'.format(i))
+    fig = plt.figure('Class separation')
+    ax = fig.gca()
+    for i in range(len(x)):
+        plt.scatter(x[i][:,0], x[i][:,1], label=labels[i])
+        plt.plot(x_means[i][0], x_means[i][1],
+                 '*', color='yellow', markersize=15, markeredgecolor='grey')
+        ell = Ellipse(x_means[i], x_stds[i][0] * number_of_stds, x_stds[i][1] * number_of_stds,
+                      facecolor='C{}'.format(i), edgecolor='black', linewidth=2)
+        # ell.set_clip_box(fig.bbox)
+        ell.set_alpha(0.5)
+        ax.add_artist(ell)
+    plt.legend()
 
-    plt.scatter(new_x, y)
-    # plt.scatter(np.array(X)[:, 0], np.array(y) + 3)
-    plt.ylim([-2, 2])
+    # plt.plot(new_x_0_mean, new_y_0[0],
+    #          '*', color='yellow', markersize=15, markeredgecolor='grey')
+    # plt.plot(new_x_1_mean, new_y_1[0],
+    #          '*', color='yellow', markersize=15, markeredgecolor='grey')
+    # plt.plot([new_x_0_mean-new_x_0_std, new_x_0_mean+new_x_0_std], [new_y_0[0], new_y_0[0]],
+    #          '|', color='red', markersize=30)
+    # plt.plot([new_x_1_mean - new_x_1_std, new_x_1_mean + new_x_1_std], [new_y_1[0], new_y_1[0]],
+    #          '|', color='red', markersize=30)
+
+else:
+    for i in range(len(classes)):
+        X = []
+        y = []
+        if i == len(classes) - 1:
+            for j in range(total_length-1):
+                if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+                    this = []
+
+                    if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+                            classes[0]:
+                        this.append(np.mean(qang[j:j + number_of_points]))
+                        this.append(np.mean(dqang[j:j + number_of_points]))
+                        this.append(np.mean(acc_x_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_y_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_z_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_x_1_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_y_1_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_z_1_filtered[j:j + number_of_points]))
+
+                        X.append(this)
+                        y.append(classification0[j + number_of_points])
+
+            # lda[i].fit(X, y)
+        else:
+            # X = []
+            # y = []
+            for j in range(total_length-1):
+                if training_lower_time < t[j] < training_upper_time and j + number_of_points < total_length:
+                    this = []
+
+                    if classification0[j + number_of_points] == classes[i] or classification0[j + number_of_points] == \
+                            classes[i + 1]:
+                        this.append(np.mean(qang[j:j + number_of_points]))
+                        this.append(np.mean(dqang[j:j + number_of_points]))
+                        this.append(np.mean(acc_x_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_y_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_z_0_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_x_1_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_y_1_filtered[j:j + number_of_points]))
+                        this.append(np.mean(acc_z_1_filtered[j:j + number_of_points]))
+
+                        X.append(this)
+                        y.append(classification0[j+number_of_points])
+
+        # new_lda = LinearDiscriminantAnalysis(store_covariance=True, priors=[0.6, 0.4])
+        new_lda = LinearDiscriminantAnalysis(store_covariance=True)
+        # # new_lda = QuadraticDiscriminantAnalysis(store_covariance=True, priors=None)
+        new_x = new_lda.fit_transform(X, y)
+        # # new_lda.fit(X, y)
+        xs.append(X)
+        ys.append(y)
+        new_xs.append(new_x)
+        # decision_functions.append(new_lda.decision_function(X))
+        scores.append(new_lda.score(X, y))
+        lda.append(new_lda)
+        #
+        new_x_0 = new_x[np.array(y) == min(y)]
+        new_y_0 = np.array(y)[np.array(y) == min(y)]
+        new_x_1 = new_x[np.array(y) == max(y)]
+        new_y_1 = np.array(y)[np.array(y) == max(y)]
+        #
+        fig = plt.figure('Class Separation')
+        splot = plt.subplot(3, 1, i+1)
+        plt.title('LDA {}'.format(i))
+        #
+        # plt.scatter(new_x, y)
+        plt.scatter(new_x_0, new_y_0)
+        plt.scatter(new_x_1, new_y_1)
+        new_x_0_mean = np.mean(new_x_0)
+        new_x_1_mean = np.mean(new_x_1)
+        new_x_0_std = np.std(new_x_0)
+        new_x_1_std = np.std(new_x_1)
+        plt.plot(new_x_0_mean, new_y_0[0],
+                 '*', color='yellow', markersize=15, markeredgecolor='grey')
+        plt.plot(new_x_1_mean, new_y_1[0],
+                 '*', color='yellow', markersize=15, markeredgecolor='grey')
+        plt.plot([new_x_0_mean - number_of_stds * new_x_0_std, new_x_0_mean + number_of_stds * new_x_0_std],
+                 [new_y_0[0], new_y_0[0]],
+                 '|', color='red', markersize=30)
+        plt.plot([new_x_1_mean - number_of_stds * new_x_1_std, new_x_1_mean + number_of_stds * new_x_1_std],
+                 [new_y_1[0], new_y_1[0]],
+                 '|', color='red', markersize=30)
+        # plt.scatter(np.array(X)[:, 0], np.array(y) + 3)
+        plt.ylim([-2, 2])
 
 print('scores: {}'.format(scores))
 # plt.show()
-print('Training completed')
+# print('Training completed')
 # exit()
 
-confidence_level = np.array([1.5, 1.5, 1.5]) - scores
+# confidence_level = np.array([1.5, 1.5, 1.5]) - scores
+print('Confidence levels: {}'.format(confidence_level))
 # confidence_level = [0.5, 0.5, 0.5]
 
+print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
 save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier2.lda')
+
+
+###############################################################################################
+###############################################################################################
+
+# Simulation
+
+###############################################################################################
+###############################################################################################
+
+
+print('Generating evaluation data...')
 # confidence_level = scores
 # sys.exit()
 # computing evaluating data
+
+if filter_size > number_of_points:
+    filter_size = number_of_points
 out = []
 if number_of_points > 1:
     for i in range(0, len(qang) - number_of_points):
         out.append([
             np.mean(qang[i:number_of_points + i]),
-            dqang[number_of_points + i],
-            medfilt(acc_x_0[i:number_of_points + i], filter_size)[-1],
-            medfilt(acc_y_0[i:number_of_points + i], filter_size)[-1],
-            medfilt(acc_z_0[i:number_of_points + i], filter_size)[-1],
-            medfilt(acc_x_1[i:number_of_points + i], filter_size)[-1],
-            medfilt(acc_y_1[i:number_of_points + i], filter_size)[-1],
-            medfilt(acc_z_1[i:number_of_points + i], filter_size)[-1]
+            np.mean(dqang[i:number_of_points + i]),
+            np.mean(medfilt(acc_x_0[i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_y_0[i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_z_0[i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_x_1[i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_y_1[i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_z_1[i:number_of_points + i], filter_size))
             # lpf(acc_x_0[i:number_of_points + i], cutoff, fs)[-1],
             # lpf(acc_y_0[i:number_of_points + i], cutoff, fs)[-1],
             # lpf(acc_z_0[i:number_of_points + i], cutoff, fs)[-1],
@@ -596,9 +714,6 @@ if number_of_points > 1:
 
 
 
-
-
-
     # def probability(self, values):
     #     return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
 
@@ -609,36 +724,62 @@ if number_of_points > 1:
 c = Classifier(lda)
 
 # Predictions
-print('Calculating predictions')
+print('Calculating predictions...')
 predictions = []
 probabilities = []
+
+state = -1
+state_prediction = [0 for i in range(output_command_filter_size)]
+state_probability = [0 for i in range(output_command_filter_size)]
+
+output_command = []
+
 for value in out:
     [new_prediction, new_probability] = c.classify(value)
     predictions.append(new_prediction)
     probabilities.append(new_probability)
+    # print(new_prediction, new_probability)
 
-state = -1
-state_prediction = [0]
-state_probability = [0]
+    if mode == 'manual':
+        if state == -1 and (value[4] > accel_threshold): # and value[5] > 0.25):
+            state = 1
+            state_prediction.append(state)
+            state_probability.append(1)
+        elif state == 1 and value[0] > 90 and value[1] < 0:
+            state = 0
+            state_prediction.append(state)
+            state_probability.append(1)
+        elif state == 0 and value[0] < 15:
+            state = -1
+            state_prediction.append(state)
+            state_probability.append(1)
+        else:
+            state_prediction.append(state_prediction[-1])
+            state_probability.append(state_probability[-1])
 
+    elif mode == 'singleLDA':
+        if new_probability[0] > confidence_level[0]:
+            state_prediction.append(new_prediction[0])
+            state_probability.append(new_probability[0])
+        else:
+            state_prediction.append(state_prediction[-1])
+            state_probability.append(state_probability[-1])
 
-
-for value in out:
-    [new_prediction, new_probability] = c.classify(value)
-
-    for s in classes:
-        if state == s:
-            i = classes.index(s)
-            if new_probability[i] > confidence_level[i]:
-                state = new_prediction[i]
-                state_prediction.append(new_prediction[i])
-                state_probability.append(new_probability[i])
-            else:
-                state_prediction.append(state_prediction[-1])
-                state_probability.append(state_probability[-1])
-            break
-state_prediction.pop(0)
-state_probability.pop(0)
+    elif mode == 'switchingLDA':
+        for s in classes:
+            if state == s:
+                i = classes.index(s)
+                if new_probability[i] > confidence_level[i]:
+                    state = new_prediction[i]
+                    state_prediction.append(new_prediction[i])
+                    state_probability.append(new_probability[i])
+                else:
+                    state_prediction.append(state_prediction[-1])
+                    state_probability.append(state_probability[-1])
+                break
+    output_command.append(np.median(state_prediction[-output_command_filter_size:]))
+[state_prediction.pop(0) for i in range(output_command_filter_size)]
+[state_probability.pop(0) for i in range(output_command_filter_size)]
 
 print('Predictions calculated')
 
@@ -653,6 +794,16 @@ print('Predictions calculated')
 # print('-1: {} ({})'.format(np.mean(all_probabilities[0]), np.std(all_probabilities[0])))
 # print('0: {} ({})'.format(np.mean(all_probabilities[1]), np.std(all_probabilities[1])))
 # print('1: {} ({})'.format(np.mean(all_probabilities[2]), np.std(all_probabilities[2])))
+
+
+###############################################################################################
+###############################################################################################
+
+# Evaluation
+
+###############################################################################################
+###############################################################################################
+
 
 temp_t = []
 temp_prediction = []
@@ -700,9 +851,9 @@ temp_score = []
 # and not only on transitions
 performance = 0
 total = 0
-for i in range(len(state_prediction)):
+for i in range(len(output_command)):
     if testing_lower_time < t[i+number_of_points] < testing_upper_time:
-        if state_prediction[i] == classification0[i+number_of_points]:
+        if output_command[i] == classification0[i+number_of_points]:
             performance += 1
             temp_score.append(1)
         else:
@@ -710,7 +861,7 @@ for i in range(len(state_prediction)):
         total += 1
         temp_t.append(t[i+number_of_points])
         temp_truth.append(classification0[i+number_of_points])
-        temp_prediction.append(state_prediction[i])
+        temp_prediction.append(output_command[i])
 print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
 print('##########################################################################################\n')
 
@@ -729,29 +880,32 @@ if normal_plot:
     print('IMU 0: {}'.format(imus[imu_0].id))
     print('IMU 1: {}'.format(imus[imu_1].id))
 
-    # plt.figure()
-    fig, ax = plt.subplots(3, 1, sharex=True, sharey=True)
-    # print('IMU 2: {}'.format(imus[2].id))
-    # plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
-    for i in range(len(classes)):
-        ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
-        ax[i].step(t[number_of_points:], [prediction[i] for prediction in predictions])
-    # ax1.step(buttons_timestamp, buttons_values)
-    # ax1.step(t[number_of_points:], predictions1)
-    # ax2.plot(t[number_of_points:], proba1)
-    # plt.title('LDA 0')
+    if mode == 'switchingLDA':
+        # plt.figure()
+        fig, ax = plt.subplots(len(classes), 1, sharex=True, sharey=True)
+        fig.canvas.set_window_title('Each LDA performance')
+        # print('IMU 2: {}'.format(imus[2].id))
+        plt.step(buttons_timestamp, buttons_values, 'k', label='FES')
+        for i in range(len(classes)):
+            ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
+            ax[i].step(t[number_of_points:], [prediction[i] for prediction in predictions])
+            plt.title('LDA {}'.format(i))
+        # ax1.step(buttons_timestamp, buttons_values)
+        # ax1.step(t[number_of_points:], predictions1)
+        # ax2.plot(t[number_of_points:], proba1)
+        # plt.title('LDA 0')
 
-    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    # ax1.step(buttons_timestamp, buttons_values)
-    # ax1.step(t[number_of_points:], predictions2)
-    # ax2.plot(t[number_of_points:], proba2)
-    # plt.title('LDA 1')
+        # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+        # ax1.step(buttons_timestamp, buttons_values)
+        # ax1.step(t[number_of_points:], predictions2)
+        # ax2.plot(t[number_of_points:], proba2)
+        # plt.title('LDA 1')
 
-    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    # ax1.step(buttons_timestamp, buttons_values)
-    # ax1.step(t[number_of_points:], predictions3)
-    # ax2.plot(t[number_of_points:], proba3)
-    # plt.title('LDA 2')
+        # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
+        # ax1.step(buttons_timestamp, buttons_values)
+        # ax1.step(t[number_of_points:], predictions3)
+        # ax2.plot(t[number_of_points:], proba3)
+        # plt.title('LDA 2')
 
     # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
     # plt.title('Switching states')
@@ -760,10 +914,13 @@ if normal_plot:
     # ax2.plot(t[number_of_points:], state_probability)
     #
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    fig.canvas.set_window_title('Switching states with temp values')
-    ax1.step(temp_t, temp_truth)
-    ax1.step(temp_t, temp_prediction)
+    fig.canvas.set_window_title('Simulation result')
+    ax1.step(temp_t, temp_truth, label='truth')
+    ax1.step(temp_t, temp_prediction, label='prediction')
+    plt.legend()
+    plt.title(mode)
     ax2.step(temp_t, temp_score)
+    plt.title('Score')
 
     # [plt.plot(packet.timestamp, packet.values, 'b.', label='Flexion') for packet in low]
     # [plt.plot(packet.timestamp, packet.values, 'g.', label='Stop') for packet in zero]
@@ -782,7 +939,9 @@ if normal_plot:
     #                   Line2D([0], [0], color='g', label='Stop', marker='o'),
     #                   Line2D([0], [0], color='r', label='Extension', marker='o')]
     # plt.legend(handles=legend_elements)
-
+    # plt.switch_backend('Qt5Agg')
+    # figManager = plt.get_current_fig_manager()
+    # figManager.window.showMaximized()
     plt.show()
 
 
