@@ -54,8 +54,8 @@ imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 110
-total_time = 160
+initial_time = 45
+total_time = 170
 
 accel_threshold = 0.05
 
@@ -667,7 +667,7 @@ print('Confidence levels: {}'.format(confidence_level))
 
 print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, number_of_points, confidence_level], 'Data/classifier2.lda')
+save_to_file([lda, classes, number_of_points, confidence_level], 'classifier_roberto_20190507_01.lda')
 
 
 ###############################################################################################
