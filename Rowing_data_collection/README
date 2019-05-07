@@ -43,8 +43,11 @@ Else:
 End
 
 6 - Start rowing
-7 - Follow sound cues. One sound starts extensions, the other starts flexion. (If not using Android version)
-8 - It stops after total_time (If not using Android version)
+If not using Android Version
+7 - Follow sound cues. One sound starts extensions, the other starts flexion.
+8 - It stops after total_time.
+end
+
 9 - stops scripts in reverse order
 
 10 - run data_store.py

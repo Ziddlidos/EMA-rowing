@@ -22,6 +22,7 @@ import threading
 stimulation = True
 
 connection = False
+
 try:
     address = ('localhost', 50001)
     server = Client(address)
@@ -36,6 +37,8 @@ except:
     print('No server found in address {}'.format(address))
 
 a = serial.tools.list_ports.comports()
+print(a)
+
 for w in a:
     print("\tPort:", w.device, "\tSerial#:", w.serial_number, "\tDesc:", w.description)
     if w.description == 'USB2.0-Serial':
@@ -58,7 +61,7 @@ sock.listen(backlog)
 time.sleep(1)
 client, clientInfo = sock.accept()
 
-time.sleep(5)
+time.sleep(1)
 current_str = [0, 0, 0, 0, 0, 0, 0, 0]
 running = True
 

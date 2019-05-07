@@ -13,8 +13,8 @@ from pyquaternion import Quaternion
 import math
 import sys
 
-mode = 'singleLDA'
-# mode = 'switchingLDA'
+# mode = 'singleLDA'
+mode = 'switchingLDA'
 # mode = 'manual'
 
 imu_forearm_id = 4
@@ -24,13 +24,13 @@ imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)
 
 # number_of_points = 50
-filter_size = 29
+filter_size = 3
 
 command = [0]
 timestamp = [time.time()]
 running = True
 # Load classifier from file
-with open('Data/classifier2.lda', 'rb') as f:
+with open('classifier_roberto_20190507_01.lda', 'rb') as f:
     try:
         print('Loading...')
         classifiers = pickle.load(f)
@@ -40,6 +40,9 @@ with open('Data/classifier2.lda', 'rb') as f:
         # Override confidence_level if desired
         # confidence_level = [0.75, 0.75, 0.75]
         print('Loading complete')
+        print('Classes: {}'.format(classes))
+        print('Number of points: '.format(number_of_points))
+        print('Confidence level: {}'.format(confidence_level))
 
     except EOFError:
         print('Loading complete')
@@ -277,7 +280,7 @@ def control(lda, classes, number_of_points, confidence_level):
             timestamp.append(time.time())
             command.append(result)
 
-            # print(result)
+            print(result)
 
     now = datetime.datetime.now()
     filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_data.txt'

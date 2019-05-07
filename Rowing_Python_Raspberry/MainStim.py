@@ -21,12 +21,12 @@ sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
 time.sleep(5)
 
 running = True
-stimulation = False
+stimulation = True
 
 print("Conectando")
 
-statSend = True
-statWait = True
+statSend = False
+statWait = False
 
 sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
 # while statSend == True:
