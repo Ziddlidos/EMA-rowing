@@ -32,6 +32,8 @@ from matplotlib.patches import Ellipse
 mode = 'switchingLDA'
 # mode = 'manual'
 
+name_to_save = 'classifier2.lda'
+
 normal_plot = True
 dash_plot = False
 
@@ -56,7 +58,7 @@ imu_arm_id = 5
 
 
 initial_time = 60
-total_time = 170
+total_time = 150
 
 accel_threshold = 0.05
 
@@ -188,7 +190,7 @@ for quat in q:
 
 dqang = np.append([0], np.diff(qang)/np.diff(t))
 
-# buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
+buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
 
 # [t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
 #                                                                     qang,
@@ -647,7 +649,7 @@ print('Confidence levels: {}'.format(confidence_level))
 
 print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, window_size, avg_f, confidence_level], 'classifier_teste.lda')
+save_to_file([lda, classes, window_size, avg_f, confidence_level], name_to_save)
 
 
 ###############################################################################################

@@ -20,6 +20,8 @@ import pyqtgraph as pg
 mode = 'switchingLDA'
 # mode = 'manual'
 
+classifier = 'classifier2.lda'
+
 imu_forearm_id = 4
 imu_arm_id = 5
 
@@ -96,7 +98,7 @@ angles = [0]
 timestamp = [time.time()]
 running = True
 # Load classifier from file
-with open('classifier_teste.lda', 'rb') as f:
+with open(classifier, 'rb') as f:
     try:
         print('Loading...')
         classifiers = pickle.load(f)
@@ -109,6 +111,7 @@ with open('classifier_teste.lda', 'rb') as f:
         print('Loading complete')
         print('Classes: {}'.format(classes))
         print('Window size: '.format(window_size))
+        print('Freq: {}'.format(freq))
         print('Confidence level: {}'.format(confidence_level))
 
     except EOFError:
@@ -453,7 +456,7 @@ def control(lda, classes, window_size, freq, confidence_level):
 def control_sync(window_size, freq):
     global imu_forearm, imu_arm, imu0, imu1
 
-    number_of_points = int(round(freq * window_size))
+    # number_of_points = int(round(freq * window_size))
     period = 1/freq
 
 
