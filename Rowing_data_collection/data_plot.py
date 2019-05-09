@@ -15,7 +15,7 @@ Date: Feb 25th 2019
 import matplotlib.pyplot as plt
 import pickle
 from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input, \
-    find_classes_and_transitions, lpf, median_filter
+    find_classes_and_transitions, lpf, median_filter, make_quaternions, angle
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -55,7 +55,7 @@ imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 45
+initial_time = 60
 total_time = 170
 
 accel_threshold = 0.05
@@ -74,15 +74,15 @@ accel_threshold = 0.05
 # sys.stdout = open('Data/results.txt', 'w')
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
 # filename = 'Data/Estevao_rowing.out'
 # filename = 'Data/breno_1604_02.out'
 # filename = 'Data/lucas_with_accel_01.out'
-filename = 'Data/roberto_03.out'
+# filename = 'Data/roberto_03.out'
 
 plt.rcParams['svg.fonttype'] = 'none'
 logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
@@ -148,20 +148,10 @@ print('Resampling and synchronizing...')
                                                                                 imus[imu_0].acc_z,
                                                                                 imus[imu_1].timestamp,
                                                                                 imus[imu_1].acc_z)
-avg_f = len(t) / (t[-1] - t[0])
+avg_f = round(len(t) / (t[-1] - t[0]))
 print('Average frequency: {}'.format(avg_f))
-number_of_points = round(avg_f * window_size)
+number_of_points = int(round(avg_f * window_size))
 
-
-def make_quaternions(imu):
-    q = []
-    for i in range(len(imu.resampled_x)):
-        q.append(Quaternion(imu.resampled_w[i],
-                            imu.resampled_x[i],
-                            imu.resampled_y[i],
-                            imu.resampled_z[i]
-                            ))
-    return q
 
 
 q0 = make_quaternions(imus[imu_0])
@@ -183,20 +173,7 @@ acc_x_1 = [i for i in imus[imu_1].resampled_acc_x]
 acc_y_1 = [i for i in imus[imu_1].resampled_acc_y]
 acc_z_1 = [i for i in imus[imu_1].resampled_acc_z]
 
-def angle(q):
-    try:
-        qr = q.elements[0]
-        if qr > 1:
-            qr = 1
-        elif qr < -1:
-            qr = -1
-        angle = 2 * math.acos(qr)
-        angle = angle * 180 / math.pi
-        if angle > 180:
-            new_angle = 360 - angle
-        return angle
-    except Exception as e:
-        print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))
+
 
 for quat in q:
     qw.append(quat.elements[0])
@@ -211,16 +188,16 @@ for quat in q:
 
 dqang = np.append([0], np.diff(qang)/np.diff(t))
 
-buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
+# buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
 
-[t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
-                                                                    qang,
-                                                                    buttons_timestamp,
-                                                                    buttons_values)
+# [t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
+#                                                                     qang,
+#                                                                     buttons_timestamp,
+#                                                                     buttons_values)
 
-dqang_resampled = []
-for i in range(1, len(qang_resampled)):
-    dqang_resampled.append( (qang_resampled[i] - qang_resampled[i-1]) / (t_ang[i] - t_ang[i-1]) )
+# dqang_resampled = []
+# for i in range(1, len(qang_resampled)):
+#     dqang_resampled.append( (qang_resampled[i] - qang_resampled[i-1]) / (t_ang[i] - t_ang[i-1]) )
 
 
 # sys.exit()
@@ -352,10 +329,10 @@ ax6.set_ylabel('Flex=-1, Off=0, Ext=1')
 # fig3 = plt.figure()
 # plt.plot(qang_resampled, buttons_values_resampled, '.')
 
-factor = 100
-qang_short = div_filter(qang_resampled[1:], factor)
-dqang_short = div_filter(dqang_resampled, factor)
-buttons_values_short = div_filter(buttons_values_resampled[1:], factor)
+# factor = 100
+# qang_short = div_filter(qang_resampled[1:], factor)
+# dqang_short = div_filter(dqang_resampled, factor)
+# buttons_values_short = div_filter(buttons_values_resampled[1:], factor)
 
 
 
@@ -670,7 +647,7 @@ print('Confidence levels: {}'.format(confidence_level))
 
 print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, number_of_points, confidence_level], 'classifier_roberto_20190507_01.lda')
+save_to_file([lda, classes, window_size, avg_f, confidence_level], 'classifier_teste.lda')
 
 
 ###############################################################################################
@@ -946,9 +923,10 @@ if normal_plot:
     # figManager = plt.get_current_fig_manager()
     # figManager.window.showMaximized()
 
-    fig = plt.figure('Frequency analysis')
-    plt.plot(t[1:], 1/np.diff(t))
-    plt.plot(t[1:], medfilt(1/np.diff(t), 25))
+    # fig = plt.figure('Frequency analysis')
+    # plt.plot(t[1:], 1/np.diff(t))
+    # plt.plot(t[1:], medfilt(1/np.diff(t), 25))
+    # plt.ylim([-10, 150])
     # print('Average frequency: {}'.format(len(t)/(t[-1]-t[1])))
 
     plt.show()

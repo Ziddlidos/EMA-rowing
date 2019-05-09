@@ -21,9 +21,13 @@ class Classifier:
         import numpy as np
         out_class = []
         out_probability = []
-        for l in self.lda:
-            out_class.append(l.predict(np.array(values).reshape(1, -1)))
-            out_probability.append(max(max(l.predict_proba(np.array(values).reshape(1, -1)))))
+        try:
+            for l in self.lda:
+                out_class.append(l.predict(np.array(values).reshape(1, -1)))
+                out_probability.append(max(max(l.predict_proba(np.array(values).reshape(1, -1)))))
+        except Exception:
+            print(values)
+            raise Exception
         return [out_class, out_probability]
 
 # Classify data according to which button was beeing pressed at that instant

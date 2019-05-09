@@ -29,7 +29,7 @@ import json
 real_time_plot = True
 
 # x and y are used to graph results in real time
-size_of_graph = 10000
+size_of_graph = 1000
 t = multiprocessing.Array('d', size_of_graph)
 ang = multiprocessing.Array('d', size_of_graph)
 fes = multiprocessing.Array('d', size_of_graph)
@@ -201,6 +201,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
         while running.value:
             data = client.recv()
             if not data == '':
+                # print(data)
                 server_data.append([time.time(), data])
                 imu_data[data[1]] = data[:]+['|']
                 # print('received stim data')

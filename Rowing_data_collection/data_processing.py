@@ -8,7 +8,10 @@ Date: Feb 25th 2019
 
 from PyQt5.QtWidgets import QWidget, QFileDialog
 from transformations import euler_from_quaternion
+from pyquaternion import Quaternion
 from numpy import mean
+import math
+import sys
 
 
 class GetFileToSave(QWidget):
@@ -223,38 +226,68 @@ def run_dash(app_dash):
     app_dash.run_server(debug=True)
 
 # Method for syncing data from sources with different sample rates, or inconsistent ones.
-def resample_series(x1, y1, x2, y2, crop=0):
-    from numpy import zeros
-    x = x1 + x2
-    x.sort()
-    y_1 = zeros(len(x))
-    y_2 = zeros(len(x))
-    j = 0
-    j_max = len(y1)
-    for i in range(len(x)):
-        if x[i] == x1[j]:
-            y_1[i] = y1[j]
-            j += 1
-            if j == j_max:
-                break
-        else: # TODO: improve interpolation method
-            if j > 0:
-                y_1[i] = y1[j-1]
-    j = 0
-    j_max = len(y2)
-    for i in range(len(x)):
-        if x[i] == x2[j]:
-            y_2[i] = y2[j]
-            j += 1
-            if j == j_max:
-                break
-        else: # TODO: improve interpolation method
-            if j > 0:
-                y_2[i] = y2[j-1]
-    if crop > 0:
-        x = x[crop:-crop]
-        y_1 = y_1[crop:-crop]
-        y_2 = y_2[crop:-crop]
+def resample_series(x1, y1, x2, y2, freq=100):
+    from numpy import floor, ceil, arange
+
+    if len(x1) != len(y1) or len(x2) != len(y2):
+        print('Unequal lengths.')
+        return -1
+
+    period = 1/freq
+    real_start_time = min(x1[0], x2[0])
+    start_time = floor(real_start_time / period) * period
+    real_final_time = max(x1[-1], x2[-1])
+    final_time = ceil(real_final_time / period) * period
+
+    time = arange(start_time, final_time, period)
+
+    y1_i = 0
+    y2_i = 0
+    y1_out = []
+    y2_out = []
+
+    for t in time:
+        y1_out.append(y1[y1_i])
+        y2_out.append(y2[y2_i])
+
+        while (t + period) > x1[y1_i] > t and y1_i < (len(x1) - 1):
+            y1_i += 1
+        while (t + period) > x2[y2_i] > t and y2_i < (len(x2) - 1):
+            y2_i += 1
+
+    return [time, y1_out, y2_out]
+
+    # from numpy import zeros
+    # x = x1 + x2
+    # x.sort()
+    # y_1 = zeros(len(x))
+    # y_2 = zeros(len(x))
+    # j = 0
+    # j_max = len(y1)
+    # for i in range(len(x)):
+    #     if x[i] == x1[j]:
+    #         y_1[i] = y1[j]
+    #         j += 1
+    #         if j == j_max:
+    #             break
+    #     else: # TODO: improve interpolation method
+    #         if j > 0:
+    #             y_1[i] = y1[j-1]
+    # j = 0
+    # j_max = len(y2)
+    # for i in range(len(x)):
+    #     if x[i] == x2[j]:
+    #         y_2[i] = y2[j]
+    #         j += 1
+    #         if j == j_max:
+    #             break
+    #     else: # TODO: improve interpolation method
+    #         if j > 0:
+    #             y_2[i] = y2[j-1]
+    # if crop > 0:
+    #     x = x[crop:-crop]
+    #     y_1 = y_1[crop:-crop]
+    #     y_2 = y_2[crop:-crop]
     return [x, y_1, y_2]
 
 
@@ -294,3 +327,39 @@ def find_classes_and_transitions(labels, time, lower_time, upper_time):
             previous_label = label
 
     return classes, transitions[1:]
+
+def make_quaternions(imu):
+    q = []
+    # if number_of_points == 0:
+    #     starting_point = 0
+    # else:
+    #     starting_point = len(imu.resampled_w) - number_of_points
+    for i in range(len(imu.resampled_x)):
+        try:
+            q.append(Quaternion(imu.resampled_w[i],
+                                imu.resampled_x[i],
+                                imu.resampled_y[i],
+                                imu.resampled_z[i]
+                                ))
+        except Exception:
+            print(len(imu.resampled_w))
+            print(len(imu.resampled_x))
+            print(len(imu.resampled_y))
+            print(len(imu.resampled_z))
+            print(i)
+    return q
+
+def angle(q):
+    try:
+        qr = q.elements[0]
+        if qr > 1:
+            qr = 1
+        elif qr < -1:
+            qr = -1
+        angle = 2 * math.acos(qr)
+        angle = angle * 180 / math.pi
+        if angle > 180:
+            new_angle = 360 - angle
+        return angle
+    except Exception as e:
+        print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))

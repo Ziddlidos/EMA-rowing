@@ -41,6 +41,7 @@ with open('classifier_roberto_20190507_01.lda', 'rb') as f:
         # confidence_level = [0.75, 0.75, 0.75]
         print('Loading complete')
         print('Classes: {}'.format(classes))
+        number_of_points = 75
         print('Number of points: '.format(number_of_points))
         print('Confidence level: {}'.format(confidence_level))
 
