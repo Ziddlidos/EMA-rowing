@@ -32,7 +32,7 @@ from matplotlib.patches import Ellipse
 mode = 'switchingLDA'
 # mode = 'manual'
 
-name_to_save = 'classifier2.lda'
+name_to_save = 'roberto.lda'
 
 normal_plot = True
 dash_plot = False
@@ -649,7 +649,7 @@ print('Confidence levels: {}'.format(confidence_level))
 
 print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, window_size, avg_f, confidence_level], name_to_save)
+save_to_file([lda, classes, trasitions, window_size, avg_f, confidence_level], name_to_save)
 
 
 ###############################################################################################

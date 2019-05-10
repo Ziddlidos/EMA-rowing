@@ -5,12 +5,14 @@ import sys
 from time import sleep
 
 # Choose file
-# app = QApplication(sys.argv)
-# source_file = GetFilesToLoad()
-# app.processEvents()
-# filename = source_file.filename[0][0]
+app = QApplication(sys.argv)
+source_file = GetFilesToLoad()
+app.processEvents()
+filename = source_file.filename[0][0]
 
-filename = '201905071132_imu_data.txt'
+print('Data file to simulate: {}'.format(filename))
+
+# filename = '201905071132_imu_data.txt'
 
 lines = []
 timestamp = []
