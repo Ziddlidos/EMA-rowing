@@ -312,35 +312,41 @@ def socket_server(address, port, x, channel):
 
 def vr_server(address, port, imu_data):
     # global imu_data
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    s.bind((address, port))
-    s.listen()
-    conn, addr = s.accept()
-    if s:
-            print('Connected to {}'.format(addr))
-            source = str(conn.recv(4096))[2:-1]
-            if len(source) > 4:
-                source = 'VR'
-            print('Source: {}'.format(source))
     while True:
-        # print('Connection attempt')
-        receiveTime = str(conn.recv(4096))[2:-1]
-        # print('Connection attempt 1')
-        # time.sleep(1/720)
-        # print('Connection attempt 2')
-        if s:
-            # imu_data.append([time.time(), imu_data])
-            # print('Sent message: {}'.format(list(imu_data)))
-            # imu_data[:] = [float(receiveTime), imu_data[:]]
-            imu_data['velocity'] = '1.0|' # TODO: real value goes here
-            out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
-            conn.send(out_data.encode())
-            # del imu_data[:]
-            # print(out_data)
-        else:
-            print('Disconnected from {}'.format(addr))
-            break
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((address, port))
+            s.listen()
+            conn, addr = s.accept()
+            if s:
+                print('Connected to {}'.format(addr))
+                source = str(conn.recv(4096))[2:-1]
+                if len(source) > 4:
+                    source = 'VR'
+                print('Source: {}'.format(source))
+            while True:
+                # print('Connection attempt')
+                receiveTime = str(conn.recv(4096))[2:-1]
+                # print('Connection attempt 1')
+                # time.sleep(1/720)
+                # print('Connection attempt 2')
+                if s:
+                    # imu_data.append([time.time(), imu_data])
+                    # print('Sent message: {}'.format(list(imu_data)))
+                    # imu_data[:] = [float(receiveTime), imu_data[:]]
+                    imu_data['velocity'] = '1.0|' # TODO: real value goes here
+                    out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
+                    conn.send(out_data.encode())
+                    # del imu_data[:]
+                    # print(out_data)
+                else:
+                    print('Disconnected from {}'.format(addr))
+                    break
+
+        except Exception as e:
+            print('Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+            print('Connection  to {} closed'.format(source))
 
 manager = multiprocessing.Manager()
 imu_data = manager.dict()
@@ -373,3 +379,4 @@ if __name__ == '__main__':
     print('Good bye')
     running.value = 0
     mserver.terminate()
+    sserver3.terminate()
