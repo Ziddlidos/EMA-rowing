@@ -28,7 +28,7 @@ from matplotlib.patches import Ellipse
 mode = 'switchingLDA'
 # mode = 'manual'
 
-simulate_with_different_data = True
+simulate_with_different_data = False
 
 normal_plot = True
 # dash_plot = False
@@ -53,7 +53,7 @@ imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 50
+initial_time = 60
 total_time = 150
 
 accel_threshold = 0.05
@@ -472,6 +472,11 @@ if simulate_with_different_data:
     imus_sim = parse_imus_file(filename)
 
     qang_sim, dqang_sim, acc_sim, t_sim = generate_imu_data(imus_sim, imu_forearm_id, imu_arm_id)
+else:
+    qang_sim = qang
+    dqang_sim = dqang
+    acc_sim = acc
+    t_sim = t
 
 
 if filter_size > number_of_points:
