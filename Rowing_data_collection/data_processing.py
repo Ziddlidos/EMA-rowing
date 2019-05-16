@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QWidget, QFileDialog
 from transformations import euler_from_quaternion
 from pyquaternion import Quaternion
 from numpy import mean
+import numpy as np
 import math
 import sys
 
@@ -160,7 +161,7 @@ def parse_emg_file(filename, starting_time):
 
     return [timestamp, emg_data]
 
-def parse_imus_file(filename, starting_time):
+def parse_imus_file(filename, starting_time=0):
     lines = []
     imus = []
     imus_ids = []
@@ -168,7 +169,9 @@ def parse_imus_file(filename, starting_time):
         for line in inputfile:
             lines.append(line.split(','))
     # first_time = float(lines[0][0])
-    for data in lines:
+    if starting_time == 0:
+        starting_time = float(lines[0][0])
+    for data in lines[1:]:
         id = float(data[2])
         if id not in imus_ids:
             imus_ids.append(id)
@@ -342,11 +345,13 @@ def make_quaternions(imu):
                                 imu.resampled_z[i]
                                 ))
         except Exception:
-            print(len(imu.resampled_w))
-            print(len(imu.resampled_x))
-            print(len(imu.resampled_y))
-            print(len(imu.resampled_z))
-            print(i)
+            # Out of sync
+            # print(len(imu.resampled_w))
+            # print(len(imu.resampled_x))
+            # print(len(imu.resampled_y))
+            # print(len(imu.resampled_z))
+            # print(i)
+            pass
     return q
 
 def angle(q):
@@ -363,3 +368,78 @@ def angle(q):
         return angle
     except Exception as e:
         print('Exception "' + str(e) + '" in line ' + str(sys.exc_info()[2].tb_lineno))
+
+
+def generate_imu_data(imus, imu_forearm_id, imu_arm_id):
+    if imus[0].id == imu_forearm_id:
+        imu_0 = 0
+        imu_1 = 1
+    else:
+        imu_1 = 0
+        imu_0 = 1
+
+    print('Resampling and synchronizing...')
+
+    [t, imus[imu_0].resampled_x, imus[imu_1].resampled_x] = resample_series(imus[imu_0].timestamp,
+                                                                            imus[imu_0].x_values,
+                                                                            imus[imu_1].timestamp,
+                                                                            imus[imu_1].x_values)
+    [t, imus[imu_0].resampled_y, imus[imu_1].resampled_y] = resample_series(imus[imu_0].timestamp,
+                                                                            imus[imu_0].y_values,
+                                                                            imus[imu_1].timestamp,
+                                                                            imus[imu_1].y_values)
+    [t, imus[imu_0].resampled_z, imus[imu_1].resampled_z] = resample_series(imus[imu_0].timestamp,
+                                                                            imus[imu_0].z_values,
+                                                                            imus[imu_1].timestamp,
+                                                                            imus[imu_1].z_values)
+    [t, imus[imu_0].resampled_w, imus[imu_1].resampled_w] = resample_series(imus[imu_0].timestamp,
+                                                                            imus[imu_0].w_values,
+                                                                            imus[imu_1].timestamp,
+                                                                            imus[imu_1].w_values)
+    [t, imus[imu_0].resampled_acc_x, imus[imu_1].resampled_acc_x] = resample_series(imus[imu_0].timestamp,
+                                                                                    imus[imu_0].acc_x,
+                                                                                    imus[imu_1].timestamp,
+                                                                                    imus[imu_1].acc_x)
+    [t, imus[imu_0].resampled_acc_y, imus[imu_1].resampled_acc_y] = resample_series(imus[imu_0].timestamp,
+                                                                                    imus[imu_0].acc_y,
+                                                                                    imus[imu_1].timestamp,
+                                                                                    imus[imu_1].acc_y)
+    [t, imus[imu_0].resampled_acc_z, imus[imu_1].resampled_acc_z] = resample_series(imus[imu_0].timestamp,
+                                                                                    imus[imu_0].acc_z,
+                                                                                    imus[imu_1].timestamp,
+                                                                                    imus[imu_1].acc_z)
+
+
+    q0 = make_quaternions(imus[imu_0])
+    q1 = make_quaternions(imus[imu_1])
+
+    q = []
+    [q.append(i * j.conjugate) for i, j in zip(q0, q1)]
+
+    qx = []
+    qy = []
+    qz = []
+    qw = []
+    qang = []
+    acc_x_0 = [i for i in imus[imu_0].resampled_acc_x]
+    acc_y_0 = [i for i in imus[imu_0].resampled_acc_y]
+    acc_z_0 = [i for i in imus[imu_0].resampled_acc_z]
+    acc_x_1 = [i for i in imus[imu_1].resampled_acc_x]
+    acc_y_1 = [i for i in imus[imu_1].resampled_acc_y]
+    acc_z_1 = [i for i in imus[imu_1].resampled_acc_z]
+
+    acc_0 = [acc_x_0, acc_y_0, acc_z_0]
+    acc_1 = [acc_x_1, acc_y_1, acc_z_1]
+
+    acc = [acc_0, acc_1]
+
+    for quat in q:
+        qw.append(quat.elements[0])
+        qx.append(quat.elements[1])
+        qy.append(quat.elements[2])
+        qz.append(quat.elements[3])
+        qang.append(angle(quat))
+
+    dqang = np.append([0], np.diff(qang) / np.diff(t))
+
+    return qang, dqang, acc, t

@@ -14,8 +14,7 @@ Date: Feb 25th 2019
 
 import matplotlib.pyplot as plt
 import pickle
-from data_processing import GetFilesToLoad, resample_series, IMU, div_filter, calculate_accel, correct_fes_input, \
-    find_classes_and_transitions, lpf, median_filter, make_quaternions, angle
+from data_processing import *
 from PyQt5.QtWidgets import QApplication
 from data_classification import *
 import sys
@@ -23,22 +22,19 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticD
 import numpy as np
 from scipy.signal import medfilt
 import logging
-import math
-from pyquaternion import Quaternion
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import Ellipse
 
 # mode = 'singleLDA'
 mode = 'switchingLDA'
 # mode = 'manual'
 
-name_to_save = 'roberto.lda'
+simulate_with_different_data = True
 
 normal_plot = True
-dash_plot = False
+# dash_plot = False
 
 # number_of_points = 149
-window_size = 1
+window_size = 0.5
 if mode == 'singleLDA':
     confidence_level = [0.85]
 else:
@@ -46,18 +42,18 @@ else:
 
 # accel filter
 filter_acc = True
-cutoff = 0.5
+# cutoff = 0.5
 fs = 50
 filter_size = 3
-output_command_filter_size = 1
-number_of_stds = 3
+output_command_filter_size = 3
+number_of_stds = 1
 
 
 imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 60
+initial_time = 50
 total_time = 150
 
 accel_threshold = 0.05
@@ -67,9 +63,7 @@ accel_threshold = 0.05
 
 ###############################################################################################
 ###############################################################################################
-
 # Data load
-
 ###############################################################################################
 ###############################################################################################
 
@@ -92,6 +86,7 @@ logging.basicConfig(filename='Data/results.txt', level=logging.DEBUG)
 data = {}
 
 # Load data
+print('Loading data from file {}'.format(filename))
 with open(filename, 'rb') as f:
     try:
         while True:
@@ -110,105 +105,21 @@ print('Variables loaded: ', var_names)
 # Assign variables
 [buttons_timestamp, buttons_values] = [data['buttons_timestamp'], data['buttons_values']]
 imus = data['imus']
-if imus[0].id == imu_forearm_id:
-    imu_0 = 0
-    imu_1 = 1
-else:
-    imu_1 = 0
-    imu_0 = 1
 
-# [emg_1_timestamp, emg_1_values] = [data['emg_1_timestamp'], data['emg_1_values']]
-# [emg_2_timestamp, emg_2_values] = [data['emg_2_timestamp'], data['emg_2_values']]
+qang, dqang, acc, t = generate_imu_data(imus, imu_forearm_id, imu_arm_id)
 
-print('Resampling and synchronizing...')
-
-[t, imus[imu_0].resampled_x, imus[imu_1].resampled_x] = resample_series(imus[imu_0].timestamp,
-                                                                        imus[imu_0].x_values,
-                                                                        imus[imu_1].timestamp,
-                                                                        imus[imu_1].x_values)
-[t, imus[imu_0].resampled_y, imus[imu_1].resampled_y] = resample_series(imus[imu_0].timestamp,
-                                                                        imus[imu_0].y_values,
-                                                                        imus[imu_1].timestamp,
-                                                                        imus[imu_1].y_values)
-[t, imus[imu_0].resampled_z, imus[imu_1].resampled_z] = resample_series(imus[imu_0].timestamp,
-                                                                        imus[imu_0].z_values,
-                                                                        imus[imu_1].timestamp,
-                                                                        imus[imu_1].z_values)
-[t, imus[imu_0].resampled_w, imus[imu_1].resampled_w] = resample_series(imus[imu_0].timestamp,
-                                                                        imus[imu_0].w_values,
-                                                                        imus[imu_1].timestamp,
-                                                                        imus[imu_1].w_values)
-[t, imus[imu_0].resampled_acc_x, imus[imu_1].resampled_acc_x] = resample_series(imus[imu_0].timestamp,
-                                                                                imus[imu_0].acc_x,
-                                                                                imus[imu_1].timestamp,
-                                                                                imus[imu_1].acc_x)
-[t, imus[imu_0].resampled_acc_y, imus[imu_1].resampled_acc_y] = resample_series(imus[imu_0].timestamp,
-                                                                                imus[imu_0].acc_y,
-                                                                                imus[imu_1].timestamp,
-                                                                                imus[imu_1].acc_y)
-[t, imus[imu_0].resampled_acc_z, imus[imu_1].resampled_acc_z] = resample_series(imus[imu_0].timestamp,
-                                                                                imus[imu_0].acc_z,
-                                                                                imus[imu_1].timestamp,
-                                                                                imus[imu_1].acc_z)
 avg_f = round(len(t) / (t[-1] - t[0]))
 print('Average frequency: {}'.format(avg_f))
 number_of_points = int(round(avg_f * window_size))
 
-
-
-q0 = make_quaternions(imus[imu_0])
-q1 = make_quaternions(imus[imu_1])
-
-q = []
-[q.append(i * j.conjugate) for i, j in zip(q0, q1)]
-
-qx = []
-qy = []
-qz = []
-qw = []
-qang = []
-dqang = []
-acc_x_0 = [i for i in imus[imu_0].resampled_acc_x]
-acc_y_0 = [i for i in imus[imu_0].resampled_acc_y]
-acc_z_0 = [i for i in imus[imu_0].resampled_acc_z]
-acc_x_1 = [i for i in imus[imu_1].resampled_acc_x]
-acc_y_1 = [i for i in imus[imu_1].resampled_acc_y]
-acc_z_1 = [i for i in imus[imu_1].resampled_acc_z]
-
-
-
-for quat in q:
-    qw.append(quat.elements[0])
-    qx.append(quat.elements[1])
-    qy.append(quat.elements[2])
-    qz.append(quat.elements[3])
-    qang.append(angle(quat))
-
-
-# for i in range(1, len(qang)):
-#     dqang.append( (qang[i] - qang[i-1]) / (t[i] - t[i-1]) )
-
-dqang = np.append([0], np.diff(qang)/np.diff(t))
-
 buttons_values = correct_fes_input(buttons_timestamp, buttons_values)
-
-# [t_ang, qang_resampled, buttons_values_resampled] = resample_series(t,
-#                                                                     qang,
-#                                                                     buttons_timestamp,
-#                                                                     buttons_values)
-
-# dqang_resampled = []
-# for i in range(1, len(qang_resampled)):
-#     dqang_resampled.append( (qang_resampled[i] - qang_resampled[i-1]) / (t_ang[i] - t_ang[i-1]) )
 
 
 # sys.exit()
 
 ###############################################################################################
 ###############################################################################################
-
 # Aux data calculation
-
 ###############################################################################################
 ###############################################################################################
 
@@ -221,7 +132,7 @@ qang_avg_low_timestamp = []
 dqang_last_low_timestamp = []
 
 qang_avg_zero = []
-dqang_last_zero= []
+dqang_last_zero = []
 qang_avg_zero_timestamp = []
 dqang_last_zero_timestamp = []
 
@@ -262,194 +173,86 @@ classes, trasitions = find_classes_and_transitions(buttons_values, buttons_times
 print('Classes: {}'.format(classes))
 print('Transitions: {}'.format(trasitions))
 
-# acc_x_0_filtered = lpf(np.array(acc_x_0), cutoff, fs)
-# acc_y_0_filtered = lpf(np.array(acc_y_0), cutoff, fs)
-# acc_z_0_filtered = lpf(np.array(acc_z_0), cutoff, fs)
-# acc_x_1_filtered = lpf(np.array(acc_x_1), cutoff, fs)
-# acc_y_1_filtered = lpf(np.array(acc_y_1), cutoff, fs)
-# acc_z_1_filtered = lpf(np.array(acc_z_1), cutoff, fs)
-acc_x_0_filtered = medfilt(acc_x_0, filter_size)
-acc_y_0_filtered = medfilt(acc_y_0, filter_size)
-acc_z_0_filtered = medfilt(acc_z_0, filter_size)
-acc_x_1_filtered = medfilt(acc_x_1, filter_size)
-acc_y_1_filtered = medfilt(acc_y_1, filter_size)
-acc_z_1_filtered = medfilt(acc_z_1, filter_size)
+acc_x_0_filtered = medfilt(acc[0][0], filter_size)
+acc_y_0_filtered = medfilt(acc[0][1], filter_size)
+acc_z_0_filtered = medfilt(acc[0][2], filter_size)
+acc_x_1_filtered = medfilt(acc[1][0], filter_size)
+acc_y_1_filtered = medfilt(acc[1][1], filter_size)
+acc_z_1_filtered = medfilt(acc[1][2], filter_size)
 
 
 # sys.exit()
 
 ###############################################################################################
 ###############################################################################################
-
 # Data plot
-
 ###############################################################################################
 ###############################################################################################
 
-# fig1, ax1 = plt.subplots()
-# plt.title('Quaternions')
-# ax1.plot(t, qx, label='x')
-# ax1.plot(t, qy, label='y')
-# ax1.plot(t, qz, label='z')
-# ax1.plot(t, qw, label='w')
-# plt.legend()
-# ax2 = ax1.twinx()
-# ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
-# plt.legend()
+def plot_data():
+
+    fig2, (ax3, ax5) = plt.subplots(2, 1, sharex=True)
+    fig2.canvas.set_window_title('Angle')
+
+    ax3.plot(t, qang, label='Ang', color='dodgerblue')
+    ax3.set_title('Angles')
+    ax3.legend()
+    ax3.set_ylabel('degrees')
+
+    ax4 = ax3.twinx()
+    ax4.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+    ax4.set_yticks([-1, 0, 1])
+    ax4.legend()
+    ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
+
+    # ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
+    # ax5.plot(t, acc_y_0_filtered, 'b', label='y')
+    ax5.plot(t, np.array(acc_z_0_filtered), 'b', label='z')
+    # ax5.plot(t, np.array(acc_x_1_filtered), 'g', label='x')
+    # ax5.plot(t, acc_y_1_filtered, 'g', label='y')
+    # ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
+    ax5.set_title('Accel')
+    ax5.legend()
+    ax5.set_ylabel('g')
+
+    ax6 = ax5.twinx()
+    ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+    ax6.set_yticks([-1, 0, 1])
+    ax6.legend()
+    ax6.set_ylabel('Flex=-1, Off=0, Ext=1')
 
 
-fig2, (ax3, ax5) = plt.subplots(2, 1, sharex=True)
-fig2.canvas.set_window_title('Angle')
+    div_factor = 1
+    plt.figure('Learning data')
+    plt.title('Low - Zero - Up')
+    # plt.title('Low / {}'.format(div_factor))
+    [plt.plot(i.timestamp, i.values, 'b') for i in qang_low[1:round(len(qang_low)/div_factor)]]
+    # plt.figure()
+    # plt.title('Zero / {}'.format(div_factor))
+    [plt.plot(i.timestamp, i.values, 'k') for i in qang_zero[1:round(len(qang_zero)/div_factor)]]
+    # plt.figure()
+    # plt.title('Up / {}'.format(div_factor))
+    [plt.plot(i.timestamp, i.values, 'r') for i in qang_up[1:round(len(qang_up)/div_factor)]]
 
-ax3.plot(t, qang, label='Ang', color='dodgerblue')
-ax3.set_title('Angles')
-ax3.legend()
-ax3.set_ylabel('degrees')
+    # plt.figure('Feature crossing')
+    # plt.title('Angle avg x diff')
+    # plt.plot(qang_avg_low[0:round(len(qang_low)/div_factor)], dqang_last_low[0:round(len(qang_low)/div_factor)], 'b.')
+    # plt.plot(qang_avg_zero[0:round(len(qang_zero)/div_factor)], dqang_last_zero[0:round(len(qang_zero)/div_factor)], 'k.')
+    # plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(len(qang_up)/div_factor)], 'r.')
 
-ax4 = ax3.twinx()
-ax4.plot(buttons_timestamp, buttons_values, 'k', label='FES')
-ax4.set_yticks([-1, 0, 1])
-ax4.legend()
-ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
-
-# ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
-# ax5.plot(t, acc_y_0_filtered, 'b', label='y')
-ax5.plot(t, np.array(acc_z_0_filtered), 'b', label='z')
-# ax5.plot(t, np.array(acc_x_1_filtered), 'g', label='x')
-# ax5.plot(t, acc_y_1_filtered, 'g', label='y')
-# ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
-ax5.set_title('Accel')
-ax5.legend()
-ax5.set_ylabel('g')
-
-ax6 = ax5.twinx()
-ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
-ax6.set_yticks([-1, 0, 1])
-ax6.legend()
-ax6.set_ylabel('Flex=-1, Off=0, Ext=1')
-
-# fig3 = plt.figure()
-# plt.plot(qang_resampled, buttons_values_resampled, '.')
-
-# factor = 100
-# qang_short = div_filter(qang_resampled[1:], factor)
-# dqang_short = div_filter(dqang_resampled, factor)
-# buttons_values_short = div_filter(buttons_values_resampled[1:], factor)
-
-
-
-# fig3d = plt.figure('3D plot')
-# plt.title('Angle x Diff x FES')
-# ax3d = fig3d.add_subplot(111, projection='3d')
-# ax3d.scatter(qang_short, dqang_short, buttons_values_short)
-# ax3d.set_xlabel('Angle')
-# ax3d.set_ylabel('Diff')
-# ax3d.set_zlabel('FES')
-# ax3d.set_ylim3d(-500,500)
-
-# fig4 = plt.figure()
-# plt.title('Angle x Diff')
-# [plt.plot(i.values[-len(j.values):], j.values, 'b.', label='Flexion') for i, j in zip(qang_low[1:], dqang_low[1:])]
-# [plt.plot(i.values[-len(j.values):], j.values, 'k.', label='Stop') for i, j in zip(qang_zero[1:], dqang_zero[1:])]
-# [plt.plot(i.values[-len(j.values):], j.values, 'r.', label='Extension') for i, j in zip(qang_up[1:], dqang_up[1:])]
-# plt.plot(qang_low, dqang_low, '.b')
-# plt.plot()
-# plt.ylim(-5000, 5000)
-
-div_factor = 1
-plt.figure('Learning data')
-plt.title('Low - Zero - Up')
-# plt.title('Low / {}'.format(div_factor))
-[plt.plot(i.timestamp, i.values, 'b') for i in qang_low[1:round(len(qang_low)/div_factor)]]
-# plt.figure()
-# plt.title('Zero / {}'.format(div_factor))
-[plt.plot(i.timestamp, i.values, 'k') for i in qang_zero[1:round(len(qang_zero)/div_factor)]]
-# plt.figure()
-# plt.title('Up / {}'.format(div_factor))
-[plt.plot(i.timestamp, i.values, 'r') for i in qang_up[1:round(len(qang_up)/div_factor)]]
-
-# plt.figure('Angle average')
-# plt.title('Time x feature')
-# plt.plot(qang_avg_low_timestamp, qang_avg_low, 'b.', label='low')
-# plt.plot(qang_avg_zero_timestamp, qang_avg_zero, 'k.', label='zero')
-# plt.plot(qang_avg_up_timestamp, qang_avg_up, 'r.', label='up')
-# plt.legend()
-
-# plt.figure('Last angle diff')
-# plt.title('Time x feature')
-# plt.plot(dqang_last_low_timestamp, dqang_last_low, 'b*', label='low')
-# plt.plot(dqang_last_zero_timestamp, dqang_last_zero, 'k*', label='zero')
-# plt.plot(dqang_last_up_timestamp, dqang_last_up, 'r*', label='up')
-# plt.ylim(-500, 500)
-# plt.legend()
-
-
-plt.figure('Feature crossing')
-plt.title('Angle avg x diff')
-plt.plot(qang_avg_low[0:round(len(qang_low)/div_factor)], dqang_last_low[0:round(len(qang_low)/div_factor)], 'b.')
-plt.plot(qang_avg_zero[0:round(len(qang_zero)/div_factor)], dqang_last_zero[0:round(len(qang_zero)/div_factor)], 'k.')
-plt.plot(qang_avg_up[0:round(len(qang_up)/div_factor)], dqang_last_up[0:round(len(qang_up)/div_factor)], 'r.')
-
-# plt.figure('Normal - Feature crossing')
-# plt.title('Angle avg x diff')
-# plt.plot(qang_avg_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], dqang_last_low[round(len(qang_low)/div_factor):2*round(len(qang_low)/div_factor)], 'b.')
-# plt.plot(qang_avg_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], dqang_last_zero[round(len(qang_low)/div_factor):2*round(len(qang_zero)/div_factor)], 'k.')
-# plt.plot(qang_avg_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], dqang_last_up[round(len(qang_low)/div_factor):2*round(len(qang_up)/div_factor)], 'r.')
-
-# plt.figure('Fast - Feature crossing')
-# plt.title('Angle avg x diff')
-# plt.plot(qang_avg_low[round(len(qang_low)/div_factor):], dqang_last_low[round(len(qang_low)/div_factor):], 'b.')
-# plt.plot(qang_avg_zero[round(len(qang_zero)/div_factor):], dqang_last_zero[round(len(qang_zero)/div_factor):], 'k.')
-# plt.plot(qang_avg_up[round(len(qang_up)/div_factor):], dqang_last_up[round(len(qang_up)/div_factor):], 'r.')
-
-# plt.show()
-# quit()
-
+    # plt.show()
+    # quit()
+plot_data()
 
 ###############################################################################################
 ###############################################################################################
-
 # Machine learning
-
 ###############################################################################################
 ###############################################################################################
-
-
-# [t, imus[2].resampled_euler_z, imus[0].resampled_euler_z] = resample_series(imus[2].timestamp,
-#                                                                             imus[2].euler_z,
-#                                                                             imus[0].timestamp,
-#                                                                             imus[0].euler_z)
-# [t, imus[2].resampled_euler_x, imus[0].resampled_euler_x] = resample_series(imus[2].timestamp,
-#                                                                             imus[2].euler_x,
-#                                                                             imus[0].timestamp,
-#                                                                             imus[0].euler_x)
-# [t, imus[2].resampled_euler_y, imus[0].resampled_euler_y] = resample_series(imus[2].timestamp,
-#                                                                             imus[2].euler_y,
-#                                                                             imus[0].timestamp,
-#                                                                             imus[0].euler_y)
 
 # [low, zero, up] = classify_by_buttons(buttons_timestamp, buttons_values, imus[2].timestamp, imus[2].euler_z)
 
 classification0 = classify_by_buttons_in_order(buttons_timestamp, buttons_values, t)
-
-
-
-# dqx0 = np.append([0], np.diff(imus[imu_0].resampled_x)/np.diff(t))
-# dqx2 = np.append([0], np.diff(imus[imu_1].resampled_x)/np.diff(t))
-# dqy0 = np.append([0], np.diff(imus[imu_0].resampled_y)/np.diff(t))
-# dqy2 = np.append([0], np.diff(imus[imu_1].resampled_y)/np.diff(t))
-# dqz0 = np.append([0], np.diff(imus[imu_0].resampled_z)/np.diff(t))
-# dqz2 = np.append([0], np.diff(imus[imu_1].resampled_z)/np.diff(t))
-# dqw0 = np.append([0], np.diff(imus[imu_0].resampled_w)/np.diff(t))
-# dqw2 = np.append([0], np.diff(imus[imu_1].resampled_w)/np.diff(t))
-
-# dz0 = np.append([0], np.diff(imus[0].resampled_euler_z)/np.diff(t))
-# dz2 = np.append([0], np.diff(imus[2].resampled_euler_z)/np.diff(t))
-# dx0 = np.append([0], np.diff(imus[0].resampled_euler_x)/np.diff(t))
-# dx2 = np.append([0], np.diff(imus[2].resampled_euler_x)/np.diff(t))
-# dy0 = np.append([0], np.diff(imus[0].resampled_euler_y)/np.diff(t))
-# dy2 = np.append([0], np.diff(imus[2].resampled_euler_y)/np.diff(t))
-
 
 def save_to_file(data, filename):
     with open(filename, 'wb') as f:
@@ -457,10 +260,10 @@ def save_to_file(data, filename):
             pickle.dump(piece_of_data, f)
 
 
-training_lower_time_table = [initial_time] # [200, 300, 400, 500, 600]
-training_upper_time_table = [total_time] # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
-testing_lower_time_table = training_lower_time_table # training_upper_time_table
-testing_upper_time_table = [total_time] # [300, 400, 500, 600, 700]
+training_lower_time_table = [initial_time]  # [200, 300, 400, 500, 600]
+training_upper_time_table = [total_time]  # [round(total_time * 3 / 4)] # [275, 375, 475, 575, 675]
+testing_lower_time_table = training_lower_time_table  # training_upper_time_table
+testing_upper_time_table = [total_time]  # [300, 400, 500, 600, 700]
 
 
 trial = 0
@@ -471,7 +274,7 @@ testing_upper_time = testing_upper_time_table[trial]
 total_length = len(classification0)
 
 # training
-print('Training')
+print('Training...')
 lda = []
 decision_functions = []
 scores = []
@@ -494,12 +297,6 @@ if mode == 'singleLDA':
             this.append(np.mean(acc_x_1_filtered[j:j + number_of_points]))
             this.append(np.mean(acc_y_1_filtered[j:j + number_of_points]))
             this.append(np.mean(acc_z_1_filtered[j:j + number_of_points]))
-            # this.append(acc_x_0[j + number_of_points])
-            # this.append(acc_y_0[j + number_of_points])
-            # this.append(acc_z_0[j + number_of_points])
-            # this.append(acc_x_1[j + number_of_points])
-            # this.append(acc_y_1[j + number_of_points])
-            # this.append(acc_z_1[j + number_of_points])
 
             X.append(this)
             y.append(classification0[j + number_of_points])
@@ -647,61 +444,51 @@ print('scores: {}'.format(scores))
 print('Confidence levels: {}'.format(confidence_level))
 # confidence_level = [0.5, 0.5, 0.5]
 
-print('Saving classifier to file...')
 # saving trained LDAs and evaluating data
-save_to_file([lda, classes, trasitions, window_size, avg_f, confidence_level], name_to_save)
+target_file = GetFileToSave()
+print('Saving classifier to file {}'.format(target_file.filename[0]))
+save_to_file([lda, classes, trasitions, window_size, avg_f, confidence_level], target_file.filename[0])
 
 
 ###############################################################################################
 ###############################################################################################
-
 # Simulation
-
 ###############################################################################################
 ###############################################################################################
 
 
 print('Generating evaluation data...')
-# confidence_level = scores
-# sys.exit()
-# computing evaluating data
+
+if simulate_with_different_data:
+    # Choose file
+    # app = QApplication(sys.argv)
+    source_file = GetFilesToLoad()
+    app.processEvents()
+    filename = source_file.filename[0][0]
+
+    print('Data file to simulate: {}'.format(filename))
+
+    # imus_sim = parse_imus_file(filename, 1557238771.5498023)
+    imus_sim = parse_imus_file(filename)
+
+    qang_sim, dqang_sim, acc_sim, t_sim = generate_imu_data(imus_sim, imu_forearm_id, imu_arm_id)
+
 
 if filter_size > number_of_points:
     filter_size = number_of_points
 out = []
 if number_of_points > 1:
-    for i in range(0, len(qang) - number_of_points):
+    for i in range(0, len(qang_sim) - number_of_points):
         out.append([
-            np.mean(qang[i:number_of_points + i]),
-            np.mean(dqang[i:number_of_points + i]),
-            np.mean(medfilt(acc_x_0[i:number_of_points + i], filter_size)),
-            np.mean(medfilt(acc_y_0[i:number_of_points + i], filter_size)),
-            np.mean(medfilt(acc_z_0[i:number_of_points + i], filter_size)),
-            np.mean(medfilt(acc_x_1[i:number_of_points + i], filter_size)),
-            np.mean(medfilt(acc_y_1[i:number_of_points + i], filter_size)),
-            np.mean(medfilt(acc_z_1[i:number_of_points + i], filter_size))
-            # lpf(acc_x_0[i:number_of_points + i], cutoff, fs)[-1],
-            # lpf(acc_y_0[i:number_of_points + i], cutoff, fs)[-1],
-            # lpf(acc_z_0[i:number_of_points + i], cutoff, fs)[-1],
-            # lpf(acc_x_1[i:number_of_points + i], cutoff, fs)[-1],
-            # lpf(acc_y_1[i:number_of_points + i], cutoff, fs)[-1],
-            # lpf(acc_z_1[i:number_of_points + i], cutoff, fs)[-1]
-            # acc_x_0[number_of_points + i],
-            # acc_y_0[number_of_points + i],
-            # acc_z_0[number_of_points + i],
-            # acc_x_1[number_of_points + i],
-            # acc_y_1[number_of_points + i],
-            # acc_z_1[number_of_points + i]
-            ])
-
-
-
-    # def probability(self, values):
-    #     return max(max(self.lda.predict_proba(np.array(values).reshape(1, -1))))
-
-# c1 = Classifier(lda1)
-# c2 = Classifier(lda2)
-# c3 = Classifier(lda3)
+            np.mean(qang_sim[i:number_of_points + i]),
+            np.mean(dqang_sim[i:number_of_points + i]),
+            np.mean(medfilt(acc_sim[0][0][i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_sim[0][1][i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_sim[0][2][i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_sim[1][0][i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_sim[1][1][i:number_of_points + i], filter_size)),
+            np.mean(medfilt(acc_sim[1][2][i:number_of_points + i], filter_size))
+        ])
 
 c = Classifier(lda)
 
@@ -765,104 +552,52 @@ for value in out:
 
 print('Predictions calculated')
 
-# scores = classifier.decision_function(X)
-# predicted_proba = classifier.predict_proba(out)
-# probability = [max(i) for i in predicted_proba]
-
-
-
-
-# print('Probabilities: ')
-# print('-1: {} ({})'.format(np.mean(all_probabilities[0]), np.std(all_probabilities[0])))
-# print('0: {} ({})'.format(np.mean(all_probabilities[1]), np.std(all_probabilities[1])))
-# print('1: {} ({})'.format(np.mean(all_probabilities[2]), np.std(all_probabilities[2])))
-
-
 ###############################################################################################
 ###############################################################################################
-
 # Evaluation
-
 ###############################################################################################
 ###############################################################################################
 
+def evaluate_performance():
+    temp_t = []
+    temp_prediction = []
+    temp_truth = []
+    temp_score = []
 
-temp_t = []
-temp_prediction = []
-temp_truth = []
-temp_score = []
-# plt.figure('Function')
-# plt.plot(decision)
-# plt.figure('Probability')
-# plt.plot(probability)
+    # Here performance point-by-point is calculated, where the classifier is evaluated at every instant,
+    # and not only on transitions
+    performance = 0
+    total = 0
+    for i in range(len(output_command)):
+        if testing_lower_time < t[i+number_of_points] < testing_upper_time:
+            if output_command[i] == classification0[i+number_of_points]:
+                performance += 1
+                temp_score.append(1)
+            else:
+                temp_score.append(0)
+            total += 1
+            temp_t.append(t[i+number_of_points])
+            temp_truth.append(classification0[i+number_of_points])
+            temp_prediction.append(output_command[i])
+    print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
+    print('##########################################################################################')
+
+    return temp_t, temp_truth, temp_prediction, temp_score
 
 
-# Evaluation
-# print('Evaluating...')
-# evaluated_buttons_timestamp = []
-# evaluated_buttons_values = []
-# evaluated_predicted_time = []
-# evaluated_predicted_values = []
-# for i in range(len(buttons_timestamp)):
-#     if testing_lower_time < buttons_timestamp[i] < testing_upper_time:
-#         evaluated_buttons_timestamp.append(buttons_timestamp[i])
-#         evaluated_buttons_values.append(buttons_values[i])
-# for i in range(len(t) - filter_size - 1):
-#     if testing_lower_time < t[i] < testing_upper_time:
-#         evaluated_predicted_time.append(t[i + filter_size])
-#         evaluated_predicted_values.append(predicted_values[i])
-#
-# [real_transitions_times, real_transitions_values] = find_transitions(evaluated_buttons_timestamp,
-#                                                                      evaluated_buttons_values)
-# [predicted_transitions_times, predicted_transitions_values] = find_transitions(evaluated_predicted_time,
-#                                                                                evaluated_predicted_values)
-#
-# [performance, error, false_transitions, false_predicted_time, false_predicted_values] = calculate_performance(real_transitions_times,
-#                                              real_transitions_values,
-#                                              predicted_transitions_times,
-#                                              predicted_transitions_values,
-#                                              tolerance)
-# total_error[int(tolerance * 10)-1].append(error)
-# plt.figure()
-# plt.hist(error, bins=10)
-# plt.title('Time frame: {}s-{}s. Tolerance: {}s.'.format(training_lower_time, testing_upper_time, tolerance))
-# plt.savefig('{}s-{}s_tolerance_{}.svg'.format(training_lower_time, testing_upper_time, tolerance))
-# plt.show()
-
-# Here performance point-by-point is calculated, where the classifier is evaluated at every instant,
-# and not only on transitions
-performance = 0
-total = 0
-for i in range(len(output_command)):
-    if testing_lower_time < t[i+number_of_points] < testing_upper_time:
-        if output_command[i] == classification0[i+number_of_points]:
-            performance += 1
-            temp_score.append(1)
-        else:
-            temp_score.append(0)
-        total += 1
-        temp_t.append(t[i+number_of_points])
-        temp_truth.append(classification0[i+number_of_points])
-        temp_prediction.append(output_command[i])
-print('Point-by-point performance: {}%'.format(np.round(performance/total*100, 2)))
-print('##########################################################################################')
+if not simulate_with_different_data:
+    temp_t, temp_truth, temp_prediction, temp_score = evaluate_performance()
 
 ###############################################################################################
 ###############################################################################################
-
 # Result plotting
-
 ###############################################################################################
 ###############################################################################################
 
-
-# Plots
 if normal_plot:
     print('Plotting...')
-    # print('IMU 0: {}'.format(imus[imu_0].id))
-    # print('IMU 1: {}'.format(imus[imu_1].id))
 
-    if mode == 'switchingLDA':
+    if mode == 'switchingLDA' and not simulate_with_different_data:
         # plt.figure()
         fig, ax = plt.subplots(len(classes), 1, sharex=True, sharey=True)
         fig.canvas.set_window_title('Each LDA performance')
@@ -872,58 +607,37 @@ if normal_plot:
             ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
             ax[i].step(t[number_of_points:], [prediction[i] for prediction in predictions])
             plt.title('LDA {}'.format(i))
-        # ax1.step(buttons_timestamp, buttons_values)
-        # ax1.step(t[number_of_points:], predictions1)
-        # ax2.plot(t[number_of_points:], proba1)
-        # plt.title('LDA 0')
 
-        # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-        # ax1.step(buttons_timestamp, buttons_values)
-        # ax1.step(t[number_of_points:], predictions2)
-        # ax2.plot(t[number_of_points:], proba2)
-        # plt.title('LDA 1')
+    if simulate_with_different_data:
+        # fig = plt.figure('Comparison between original and new data')
+        # plt.plot(t, qang, label='original')
+        # plt.plot(t_sim, qang_sim, label='new data')
+        # plt.legend()
 
-        # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-        # ax1.step(buttons_timestamp, buttons_values)
-        # ax1.step(t[number_of_points:], predictions3)
-        # ax2.plot(t[number_of_points:], proba3)
-        # plt.title('LDA 2')
+        fig, ax1 = plt.subplots(1, 1, sharex=True)
+        fig.canvas.set_window_title('Simulation result')
+        ax1.plot(t_sim, qang_sim, label='angle')
+        ax1.set_ylabel('Degrees')
+        ax1.legend()
+        ax2 = ax1.twinx()
+        ax2.step(t_sim[number_of_points:], output_command, color='C1', label='prediction')
+        ax2.set_yticks([-1, 0, 1])
+        ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
+        ax1.legend()
+    else:
+        fig, ax1 = plt.subplots(1, 1, sharex=True)
+        fig.canvas.set_window_title('Simulation result')
+        ax1.plot(t, qang, color='C0', label='angle')
+        ax1.set_ylabel('Degrees')
+        ax1.legend()
+        ax2 = ax1.twinx()
+        ax2.step(temp_t, temp_truth, color='k', label='truth')
+        ax2.step(temp_t, temp_prediction, color='C1', label='prediction')
+        ax2.set_yticks([-1, 0, 1])
+        ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
+        ax1.legend()
+        ax1.set_title(mode)
 
-    # fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, sharey=True)
-    # plt.title('Switching states')
-    # ax1.step(t, classification0)
-    # ax1.step(t[number_of_points:], state_prediction)
-    # ax2.plot(t[number_of_points:], state_probability)
-    #
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    fig.canvas.set_window_title('Simulation result')
-    ax1.step(temp_t, temp_truth, label='truth')
-    ax1.step(temp_t, temp_prediction, label='prediction')
-    plt.legend()
-    plt.title(mode)
-    ax2.step(temp_t, temp_score)
-    plt.title('Score')
-
-    # [plt.plot(packet.timestamp, packet.values, 'b.', label='Flexion') for packet in low]
-    # [plt.plot(packet.timestamp, packet.values, 'g.', label='Stop') for packet in zero]
-    # [plt.plot(packet.timestamp, packet.values, 'r.', label='Extension') for packet in up]
-    # plt.plot(t, classification0, 'c')
-    # plt.plot(t[number_of_points:], predicted_values, 'g:', label='Predicted')
-    # plt.step(trusted_t, trusted_predictions, 'g-', where='post', label='Trusted predictions')
-    # plt.step(false_predicted_time, false_predicted_values, 'b--', label='False predictions')
-    # plt.plot(imu_2_z_up_timestamp, imu_2_z_up_values, 'r.', label='extension')
-    # plt.plot(imu_2_z_zero_timestamp, imu_2_z_zero_values, 'g.', label='stop')
-    # plt.plot(imu_2_z_low_timestamp, imu_2_z_low_values, 'b.', label='flexion')
-
-    # plt.title(filename)
-    # plt.legend()
-    # legend_elements = [Line2D([0], [0], color='b', label = 'Flexion', marker='o'),
-    #                   Line2D([0], [0], color='g', label='Stop', marker='o'),
-    #                   Line2D([0], [0], color='r', label='Extension', marker='o')]
-    # plt.legend(handles=legend_elements)
-    # plt.switch_backend('Qt5Agg')
-    # figManager = plt.get_current_fig_manager()
-    # figManager.window.showMaximized()
 
     # fig = plt.figure('Frequency analysis')
     # plt.plot(t[1:], 1/np.diff(t))
@@ -932,13 +646,3 @@ if normal_plot:
     # print('Average frequency: {}'.format(len(t)/(t[-1]-t[1])))
 
     plt.show()
-
-
-
-# for i in range(5):
-#     plt.figure()
-#     plt.hist(total_error[i], bins=10)
-#     plt.title('Total error for tolerance = {}s'.format((i + 1) / 10))
-#     plt.savefig('total_error_hist_tolerance_{}s.svg'.format((i + 1) / 10))
-
-# plt.show()

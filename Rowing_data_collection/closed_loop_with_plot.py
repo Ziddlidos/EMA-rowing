@@ -1,18 +1,14 @@
 import pickle
-import matplotlib.pyplot as mpl
 from PyQt5.QtWidgets import QApplication
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import threading
-import multiprocessing
 from multiprocessing.connection import Listener
+# import select
 import time
 import datetime
-from data_processing import IMU, calculate_accel, resample_series, make_quaternions, angle, GetFilesToLoad
+from data_processing import IMU, resample_series, make_quaternions, angle, GetFilesToLoad
 from data_classification import Classifier
 import numpy as np
 from scipy.signal import medfilt
-from pyquaternion import Quaternion
-import math
 import sys
 from pyqtgraph.Qt import QtGui, QtCore
 import pyqtgraph as pg
@@ -33,8 +29,6 @@ imu_arm_id = 5
 
 imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)
-imu0 = IMU(-1)
-imu1 = IMU(-1)
 
 # number_of_points = 50
 filter_size = 3
@@ -138,7 +132,7 @@ def imu_thread(client_list):
     # now = time.time()
     # number_of_packets = 1
     try:
-        while True:
+        while running:
             # print(address)
             # time.sleep(1)
             data = client.recv()
@@ -240,7 +234,7 @@ def stim_thread(client):
 
 def control(lda, classes, window_size, freq, confidence_level):
     # import math
-    global imu_forearm, imu_arm, imu0, imu1, command, angles, t, ang, fes, filter_size
+    global imu_forearm, imu_arm, imu0, imu1, command, angles, t, ang, fes, filter_size, running
 
     source = 'control'
 
@@ -297,14 +291,6 @@ def control(lda, classes, window_size, freq, confidence_level):
         q0 = make_quaternions(imu_forearm)
         q1 = make_quaternions(imu_arm)
 
-        # [t0, q0] = [imu0.timestamp, make_quaternions(imu0)]
-        # [t1, q1] = [imu1.timestamp, make_quaternions(imu1)]
-
-        # [new_t, new_q0, new_q1] = resample_series(t0, q0, t1, q1, freq=freq)
-
-        # print('len q0: {}'.format(len(q0)))
-        # print('len q1: {}'.format(len(q1)))
-        # print('len t: {}'.format(len(t0)))
         q = []
         [q.append(i * j.conjugate) for i, j in zip(q0, q1)]
 
@@ -313,7 +299,6 @@ def control(lda, classes, window_size, freq, confidence_level):
         qz = []
         qw = []
         qang = []
-        # dqang = []
         acc_x_0 = [i for i in imu_forearm.resampled_acc_x]
         acc_y_0 = [i for i in imu_forearm.resampled_acc_y]
         acc_z_0 = [i for i in imu_forearm.resampled_acc_z]
@@ -321,12 +306,6 @@ def control(lda, classes, window_size, freq, confidence_level):
         acc_y_1 = [i for i in imu_arm.resampled_acc_y]
         acc_z_1 = [i for i in imu_arm.resampled_acc_z]
 
-        # acc_x_0_filtered = medfilt(acc_x_0, filter_size)
-        # acc_y_0_filtered = medfilt(acc_y_0, filter_size)
-        # acc_z_0_filtered = medfilt(acc_z_0, filter_size)
-        # acc_x_1_filtered = medfilt(acc_x_1, filter_size)
-        # acc_y_1_filtered = medfilt(acc_y_1, filter_size)
-        # acc_z_1_filtered = medfilt(acc_z_1, filter_size)
 
         for quat in q:
             qw.append(quat.elements[0])
@@ -347,23 +326,13 @@ def control(lda, classes, window_size, freq, confidence_level):
         dqang = np.append([0], da / dt)
         # q.append(new_q0[-1] * new_q1[-1].conjugate)
         if t0[-1] == time_control[-1]:
-            print('ignoring data')
+            # Repeated value. Ignore.
+            # print('ignoring data')
             continue
         time_control.append(t0[-1])
         angles.append(angle(q[-1]))
-        # print(angles[-1])
-        # if len(angles) > number_of_points:
-
-
-            # out = list()
         out = []
 
-        # out = out + angles[-number_of_points:]
-        # out = out + list(np.diff(angles[-number_of_points - 1:]))
-
-        # d = np.mean(np.diff(angles[-number_of_points:]) / np.diff(time_control[-number_of_points:])) # TODO: make the correct calculation here
-
-        # if not math.isnan(d):
         out.append([
             np.mean(qang[-number_of_points:]),
             np.mean(dqang[-number_of_points:]),
@@ -374,11 +343,6 @@ def control(lda, classes, window_size, freq, confidence_level):
             np.mean(medfilt(acc_y_1[-number_of_points:], filter_size)),
             np.mean(medfilt(acc_z_1[-number_of_points:], filter_size))
             ])
-            # print(out)
-        # else:
-        #     print(time_control[-number_of_points:])
-        #     continue
-
 
         # print(out)
 
@@ -390,7 +354,6 @@ def control(lda, classes, window_size, freq, confidence_level):
             raise Exception
         predictions.append(new_prediction)
         probabilities.append(new_probability)
-        # result = classifier.predict(np.array(out).reshape(1, -1))
 
         if mode  == 'switchingLDA':
             for s in classes:
@@ -434,7 +397,6 @@ def control(lda, classes, window_size, freq, confidence_level):
         # print(result)
         timestamp.append(time.time())
         command.append(result)
-        # command[-1] = medfilt(command[-filter_size-1:])[-1]
         # print(command[-1])
 
         t[0:-1] = t[1:]
@@ -458,53 +420,20 @@ def control(lda, classes, window_size, freq, confidence_level):
     # [f.write(str(i)[1:-1].replace('[', '').replace(']', '') + '\r\n') for i in server_data]
     f.close()
 
-# def control_sync(window_size, freq):
-#     global imu_forearm, imu_arm, imu0, imu1
-#
-#     # number_of_points = int(round(freq * window_size))
-#     period = 1/freq
-#
-#
-#
-#     while len(imu_forearm.timestamp) == 0 or len(imu_arm.timestamp) == 0:
-#         time.sleep(period)
-#
-#     print('Synching')
-#
-#     while running:
-#         now = time.time()
-#
-#         imu0.timestamp.append(imu_forearm.timestamp[-1])
-#         imu0.x_values.append(imu_forearm.x_values[-1])
-#         imu0.y_values.append(imu_forearm.y_values[-1])
-#         imu0.z_values.append(imu_forearm.z_values[-1])
-#         imu0.w_values.append(imu_forearm.w_values[-1])
-#         imu0.acc_x.append(imu_forearm.acc_x[-1])
-#         imu0.acc_y.append(imu_forearm.acc_y[-1])
-#         imu0.acc_z.append(imu_forearm.acc_z[-1])
-#
-#         imu1.timestamp.append(imu_arm.timestamp[-1])
-#         imu1.x_values.append(imu_arm.x_values[-1])
-#         imu1.y_values.append(imu_arm.y_values[-1])
-#         imu1.z_values.append(imu_arm.z_values[-1])
-#         imu1.w_values.append(imu_arm.w_values[-1])
-#         imu1.acc_x.append(imu_arm.acc_x[-1])
-#         imu1.acc_y.append(imu_arm.acc_y[-1])
-#         imu1.acc_z.append(imu_arm.acc_z[-1])
-#
-#         # time_control.append(time.time())
-#
-#         time.sleep(period - (time.time() - now))
 
 def server(address, port):
+    global running
     serv = Listener((address, port))
 
     # s = socket.socket()
     # s.bind(address)
     # s.listen()
-    while True:
+    while running:
         # client, addr = s.accept()
+        # select.select([serv], [], [serv], 0.1)
+        # print(wait([serv], 0.2))
         client = serv.accept()
+
         print('Connected to {}'.format(serv.last_accepted))
         source = client.recv()
         print('Source: {}'.format(source))
@@ -517,69 +446,22 @@ def server(address, port):
         # p = multiprocessing.Process(target=do_stuff, args=(client, source))
         # do_stuff(client, addr)
         # p.start()
+    print('Server closed')
 
-# def update_plot():
-#     global t, ang, fes, start_time, imu_forearm, imu_arm, command, angles
-#
-#     t[0:-1] = t[1:]
-#     t[-1] = time.time() - start_time
-#
-#     ang[0:-1] = ang[1:]
-#     ang[-1] = angles[-1]
-#
-#     fes[0:-1] = fes[1:]
-#     fes[-1] = command[-1] * 45 + 45
-#
-#     # print(source)
-#     if source == 'imus':
-#         new_quat = Quaternion(data[2], data[3], data[4], data[5])
-#         id = data[1]
-#
-#         if id == imu1_id:
-#             imu1.append(new_quat)
-#         elif id == imu2_id:
-#             imu2.append(new_quat)
-#         else:
-#             # print('ID not known')
-#             return
-#
-#         new_angle = calculate_distance(imu1[-1], imu2[-1])
-#
-#         ang[0:-1] = ang[1:]
-#         ang[-1] = new_angle
-#
-#         fes[0:-1] = fes[1:]
-#         fes[-1] = fes[-2]
-#
-#
-#     elif source == 'stim':
-#         # print('update stim')
-#         stim_state = data[1]
-#         state = 0
-#         if stim_state == 'stop':
-#             state = 0
-#         elif stim_state == 'extension':
-#             state = 1
-#         elif stim_state == 'flexion':
-#             state = -1
-#         fes[0:-1] = fes[1:]
-#         fes[-1] = state * 45 + 45
-#
-#         ang[0:-1] = ang[1:]
-#     ang[-1] = ang[-2]
 
 if __name__ == '__main__':
 
-    # sync = threading.Thread(target=control_sync, args=(window_size, freq))
     control_loop = threading.Thread(target=control, args=(classifiers, classes, window_size, freq, confidence_level))
     server = threading.Thread(target=server, args=('', 50001))
 
     server.start()
-    # sync.start()
     control_loop.start()
 
     if real_time_plot:
         if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
             QtGui.QApplication.instance().exec_()
+
     # real_time_plot_thread = threading.Thread(target=update_plot, args=(,))
     # real_time_plot_thread.start()
+    running = False
+
