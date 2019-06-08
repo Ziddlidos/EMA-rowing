@@ -35,6 +35,8 @@ ang = multiprocessing.Array('d', size_of_graph)
 fes = multiprocessing.Array('d', size_of_graph)
 running = multiprocessing.Value('b')
 start_time = time.time()
+startup_velocity = False
+velocity_queue = multiprocessing.Queue()
 if real_time_plot:
 
     imu1_id = 4
@@ -138,7 +140,6 @@ def calculate_distance(q0, q1):
 
 
 def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
-
     def save_data():
         now = datetime.datetime.now()
         filename = now.strftime('%Y%m%d%H%M%S') + '_' + source + '_data.txt'
@@ -152,7 +153,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
     imu1 = [Quaternion(1, 0, 0, 0)]
     imu2 = [Quaternion(1, 0, 0, 0)]
     def update_plot():
-        global t, ang, fes, start_time
+        global t, ang, fes, start_time, startup_velocity, velocity_queue
 
         t[0:-1] = t[1:]
         t[-1] = time.time() - start_time
@@ -203,6 +204,10 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
             if not data == '':
                 server_data.append([time.time(), data])
                 imu_data[data[1]] = data[:]+['|']
+                if data[1] == 4:
+                    startup_velocity = True
+                    velocity_queue.put(data)
+                    print('{}'.format(source), ' - ', data[1])
                 # print('received stim data')
                 if real_time_plot:
                     update_plot()
@@ -258,7 +263,7 @@ def do_stuff_socket(client, source, x, channel):
             # print(1/(time.time()-now))
             # now = time.time()
     except Exception as e:
-        print('Exception raised: ', str(e))
+        print('Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
         print('Connection  to {} closed'.format(source))
         now = datetime.datetime.now()
         filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_ch' + str(channel) + '_data.txt'
@@ -322,8 +327,8 @@ def vr_server(address, port, imu_data):
             if s:
                 print('Connected to {}'.format(addr))
                 source = str(conn.recv(4096))[2:-1]
-                if len(source) > 4:
-                    source = 'VR'
+                if source != 'VR':
+                    continue
                 print('Source: {}'.format(source))
             while True:
                 # print('Connection attempt')
@@ -335,7 +340,6 @@ def vr_server(address, port, imu_data):
                     # imu_data.append([time.time(), imu_data])
                     # print('Sent message: {}'.format(list(imu_data)))
                     # imu_data[:] = [float(receiveTime), imu_data[:]]
-                    imu_data['velocity'] = '1.0|' # TODO: real value goes here
                     out_data = json.dumps(receiveTime + '|') + json.dumps(dict(imu_data))
                     conn.send(out_data.encode())
                     # del imu_data[:]
@@ -345,8 +349,125 @@ def vr_server(address, port, imu_data):
                     break
 
         except Exception as e:
-            print('Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+            print('VR - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
             print('Connection  to {} closed'.format(source))
+
+def quat2euler(input_quat):
+    if isinstance(input_quat, Quaternion):
+        q = input_quat.elements
+    elif len(input_quat) == 4:
+        q = input_quat
+    else:
+        q = [1, 0, 0, 0]
+        print('Invalid quaternion!')
+    
+    (x, y, z, w) = (q[0], q[1], q[2], q[3])
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(t0, t1) * 180/math.pi
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch = math.asin(t2) * 180/math.pi
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(t3, t4) * 180/math.pi
+    
+    return [roll, pitch, yaw]
+            
+def velocity_calculation(address, imu_data):
+    signal_change = []
+    orientation_signal = []
+    last_positive_concavity = -1
+    last_negative_concavity = -1
+    minimum_period = 0.25
+    calculated_velocity = 0
+    
+    while True:
+        try:
+            start_time = time.time()
+            queue_data = velocity_queue.get()
+            if queue_data != None:
+                print('Velocity Calculation - ' + str(queue_data[1]))
+                queue_data.extend(quat2euler(queue_data[2:6]))
+                orientation_signal.append({'time':queue_data[0], 'value':queue_data[-2]})
+                if len(orientation_signal) > 1:
+                    orientation_signal[-1]['derivative'] = (orientation_signal[-1]['value']-orientation_signal[-2]['value']) / (orientation_signal[-1]['time']-orientation_signal[-2]['time'])
+                    
+                if len(orientation_signal) > 2:
+                    if (orientation_signal[-2]['derivative'] <= 0 and orientation_signal[-1]['derivative'] > 0) or (orientation_signal[-2]['derivative'] < 0 and orientation_signal[-1]['derivative'] >= 0):
+                        signal_change.append({'time' : orientation_signal[-1]['time'], 'concavity' : 1, 'value' : orientation_signal[-1]['value']})
+                        
+                        if last_positive_concavity >= 0:
+                            signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_positive_concavity]['time']
+                        
+                        if last_negative_concavity >= 0:
+                            signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_negative_concavity]['value'])
+                            
+                        if last_negative_concavity >= 0 and last_positive_concavity >= 0:
+                            calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
+                            print('Calculated Velocity Positive - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                            imu_data['velocity'] = str(calculated_velocity) + '|'
+                        
+                        last_positive_concavity = len(signal_change) - 1
+                        
+                    elif (orientation_signal[-2]['derivative'] >= 0 and orientation_signal[-1]['derivative'] < 0) or (orientation_signal[-2]['derivative'] > 0 and orientation_signal[-1]['derivative'] <= 0):
+                        signal_change.append({'time' : orientation_signal[-1]['time'], 'concavity' : 0, 'value' : orientation_signal[-1]['value']})
+                        
+                        if last_negative_concavity >= 0:
+                            signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_negative_concavity]['time']
+                        
+                        if last_positive_concavity >= 0:
+                            signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_positive_concavity]['value'])
+                        
+                        if last_negative_concavity >= 0 and last_positive_concavity >= 0:
+                            calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
+                            print('Calculated Velocity Negative - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                            imu_data['velocity'] = str(calculated_velocity) + '|'
+                        
+                        last_negative_concavity = len(signal_change) - 1
+                    
+                if len(orientation_signal) > 1000:
+                    del orientation_signal[0]
+                
+                if len(signal_change) > 200:
+                    del signal_change[0]
+                    
+                    if last_positive_concavity >= 0:
+                        last_positive_concavity = last_positive_concavity - 1
+                    
+                    if last_negative_concavity >= 0:
+                        last_negative_concavity = last_negative_concavity - 1
+                
+            else:
+                print('No velocity to calculate')
+            
+            print(time.time() - start_time, ' - ', queue_data[1], ' ' , calculated_velocity)
+            print()
+            '''sleep_time = 0.0041666666666666666666666666666 - (time.time() - start_time) # Runs at 240 Hz max
+            if sleep_time > 0:
+                time.sleep(sleep_time)'''
+
+        except Exception as e:
+                print('Velocity Calculation - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+
+'''def velocity_designator(address, imu_data):
+    global startup_velocity, velocity_queue
+    
+    try:
+        processes = []
+        while True: #TODO - condition to break the loop and join threads
+            data = velocity_queue.get()
+            p = multiprocessing.Process(target=velocity_calculation, args=(data[1], imu_data))
+            p.start()
+            processes.append(p)
+        
+        for p in processes:
+            p.join()
+            
+    except Exception as e:
+        print('Velocity Designator - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))'''
+
 
 manager = multiprocessing.Manager()
 imu_data = manager.dict()
@@ -369,6 +490,8 @@ if __name__ == '__main__':
     # sserver2.start()
     sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
     sserver3.start()
+    velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data))
+    velocity_process.start()
     # server(('', 50000))
 
     if real_time_plot:
@@ -380,3 +503,4 @@ if __name__ == '__main__':
     running.value = 0
     mserver.terminate()
     sserver3.terminate()
+    velocity_process.terminate()
