@@ -72,7 +72,9 @@ def classify_by_buttons(buttons_timestamp, buttons_values, vector_timestamp, vec
                     this_class.values.append(vector_values[i])
             else:
                 break
-    return [low, zero, up]
+    # for some reason, the labeling here is wrong
+    # TODO: correct low, zero, up labeling
+    return [up, low, zero]
 
 # Classify data according to which button was beeing pressed at that instant
 # Returns a single list with the classification. This list is the same size as the input

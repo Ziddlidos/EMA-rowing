@@ -23,9 +23,10 @@ import numpy as np
 from scipy.signal import medfilt
 import logging
 from matplotlib.patches import Ellipse
+from matplotlib.lines import Line2D
 
-# mode = 'singleLDA'
-mode = 'switchingLDA'
+mode = 'singleLDA'
+# mode = 'switchingLDA'
 # mode = 'manual'
 
 simulate_with_different_data = False
@@ -59,7 +60,15 @@ total_time = 150
 accel_threshold = 0.05
 
 # classes = [-1, 1, 0]
-
+#Direct input
+plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+#Options
+params = {'text.usetex' : True,
+          'font.size' : 11,
+          'font.family' : 'lmodern',
+          'text.latex.unicode': True,
+          }
+plt.rcParams.update(params)
 
 ###############################################################################################
 ###############################################################################################
@@ -197,13 +206,15 @@ def plot_data():
     ax3.plot(t, qang, label='Ang', color='dodgerblue')
     ax3.set_title('Angles')
     ax3.legend()
-    ax3.set_ylabel('degrees')
+    ax3.set_ylabel('degrees [$^\circ$]')
+    # ax3.set_xlabel('time [s]')
 
     ax4 = ax3.twinx()
     ax4.plot(buttons_timestamp, buttons_values, 'k', label='FES')
     ax4.set_yticks([-1, 0, 1])
     ax4.legend()
     ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
+    # ax3.set_xlabel('time [s]')
 
     # ax5.plot(t, np.array(acc_x_0_filtered) + 1, 'b', label='x')
     # ax5.plot(t, acc_y_0_filtered, 'b', label='y')
@@ -213,7 +224,8 @@ def plot_data():
     # ax5.plot(t, np.array(acc_z_1_filtered) - 1, 'g', label='z')
     ax5.set_title('Accel')
     ax5.legend()
-    ax5.set_ylabel('g')
+    ax5.set_ylabel('acceleration [g]')
+    ax5.set_xlabel('time [s]')
 
     ax6 = ax5.twinx()
     ax6.plot(buttons_timestamp, buttons_values, 'k', label='FES')
@@ -223,16 +235,37 @@ def plot_data():
 
 
     div_factor = 1
-    plt.figure('Learning data')
-    plt.title('Low - Zero - Up')
+    fig, ax = plt.subplots(sharex=True)
+    # fig actual size
+    # fig.set_size_inches(3.54, 3.54)
+    fig.canvas.set_window_title('Learning data')
+    ax.set_title('Data labeling')
     # plt.title('Low / {}'.format(div_factor))
-    [plt.plot(i.timestamp, i.values, 'b') for i in qang_low[1:round(len(qang_low)/div_factor)]]
+    [ax.plot(i.timestamp, i.values, '.', color='C0', label='low') for i in qang_low[1:round(len(qang_low)/div_factor)]]
     # plt.figure()
     # plt.title('Zero / {}'.format(div_factor))
-    [plt.plot(i.timestamp, i.values, 'k') for i in qang_zero[1:round(len(qang_zero)/div_factor)]]
+    [ax.plot(i.timestamp, i.values, '.', color='C1', label='zero') for i in qang_zero[1:round(len(qang_zero)/div_factor)]]
     # plt.figure()
     # plt.title('Up / {}'.format(div_factor))
-    [plt.plot(i.timestamp, i.values, 'r') for i in qang_up[1:round(len(qang_up)/div_factor)]]
+    [ax.plot(i.timestamp, i.values, '.', color='C2', label='up') for i in qang_up[1:round(len(qang_up)/div_factor)]]
+    ax.set_xlabel('time [s]')
+    ax.set_ylabel('angle [$^\circ$]')
+    ax2 = ax.twinx()
+    ax2.plot(buttons_timestamp, buttons_values, 'k', label='FES')
+    ax2.set_yticks([-1, 0, 1])
+    ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
+
+    plt.xlim([100, 110])
+
+    legend_elements = [Line2D([0], [0], color='C0', marker='o', label='flexion'),
+                       Line2D([0], [0], color='C1', marker='o', label='off'),
+                       Line2D([0], [0], color='C2', marker='o', label='extension'),
+                       Line2D([0], [0], color='k', label='FES'),]
+    # ax.legend(handles=legend_elements, fancybox=False, framealpha=1)
+    ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
+
+    plt.savefig('labeling.pdf', dpi=1000, bbox_inches='tight')
+    plt.savefig('labeling.pgf', dpi=1000, bbox_inches='tight')
 
     # plt.figure('Feature crossing')
     # plt.title('Angle avg x diff')
@@ -243,6 +276,8 @@ def plot_data():
     # plt.show()
     # quit()
 plot_data()
+
+# sys.exit()
 
 ###############################################################################################
 ###############################################################################################
@@ -325,7 +360,7 @@ if mode == 'singleLDA':
         x.append(new_x[np.array(y) == c, :])
         x_means.append([np.mean(x[-1][:, 0]), np.mean(x[-1][:, 1])])
         x_stds.append([np.std(x[-1][:, 0]), np.std(x[-1][:, 1])])
-        labels.append(str(c))
+        labels.append('flexion' if str(c) == '-1' else 'extension' if str(c) == '1' else 'off')
 
     fig = plt.figure('Class separation')
     ax = fig.gca()
@@ -338,7 +373,13 @@ if mode == 'singleLDA':
         # ell.set_clip_box(fig.bbox)
         ell.set_alpha(0.5)
         ax.add_artist(ell)
+    ax.set_title('Class separation')
+    ax.set_xlabel('1st component')
+    ax.set_ylabel('2nd component')
     plt.legend()
+
+    plt.savefig('separation.pdf', dpi=1000, bbox_inches='tight')
+    plt.savefig('separation.pgf', dpi=1000, bbox_inches='tight')
 
     # plt.plot(new_x_0_mean, new_y_0[0],
     #          '*', color='yellow', markersize=15, markeredgecolor='grey')
@@ -611,7 +652,7 @@ if normal_plot:
         for i in range(len(classes)):
             ax[i].step(buttons_timestamp, buttons_values, 'k', label='FES')
             ax[i].step(t[number_of_points:], [prediction[i] for prediction in predictions])
-            plt.title('LDA {}'.format(i))
+            ax[i].set_title('LDA {}'.format(i))
 
     if simulate_with_different_data:
         # fig = plt.figure('Comparison between original and new data')
@@ -622,26 +663,45 @@ if normal_plot:
         fig, ax1 = plt.subplots(1, 1, sharex=True)
         fig.canvas.set_window_title('Simulation result')
         ax1.plot(t_sim, qang_sim, label='angle')
-        ax1.set_ylabel('Degrees')
-        ax1.legend()
+        ax1.set_ylabel('Degrees [$^\circ$]')
+        ax1.set_xlabel('Time [s]')
+
+        # ax1.legend()
         ax2 = ax1.twinx()
         ax2.step(t_sim[number_of_points:], output_command, color='C1', label='prediction')
         ax2.set_yticks([-1, 0, 1])
         ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
-        ax1.legend()
+        # ax2.legend()
+        plt.xlim([100, 110])
+        legend_elements = [Line2D([0], [0], color='C0', label='angle'),
+                           Line2D([0], [0], color='k', label='truth'),
+                           Line2D([0], [0], color='C1', label='prediction')]
+        ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
+
+        plt.savefig('simulation_with_different_data.pdf', dpi=1000, bbox_inches='tight')
+        plt.savefig('simulation_with_different_data.pgf', dpi=1000, bbox_inches='tight')
     else:
         fig, ax1 = plt.subplots(1, 1, sharex=True)
         fig.canvas.set_window_title('Simulation result')
         ax1.plot(t, qang, color='C0', label='angle')
-        ax1.set_ylabel('Degrees')
-        ax1.legend()
+        ax1.set_ylabel('Degrees [$^\circ$]')
+        ax1.set_xlabel('Time [s]')
+        # ax1.legend()
         ax2 = ax1.twinx()
         ax2.step(temp_t, temp_truth, color='k', label='truth')
         ax2.step(temp_t, temp_prediction, color='C1', label='prediction')
         ax2.set_yticks([-1, 0, 1])
         ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
-        ax1.legend()
-        ax1.set_title(mode)
+        # ax2.legend()
+        ax1.set_title('Single LDA' if str(mode) == 'singleLDA' else 'Multi LDA')
+        plt.xlim([100, 110])
+        legend_elements = [Line2D([0], [0], color='C0', label='angle'),
+                           Line2D([0], [0], color='k', label='truth'),
+                           Line2D([0], [0], color='C1', label='prediction')]
+        ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
+
+        plt.savefig('simulation.pdf', dpi=1000, bbox_inches='tight')
+        plt.savefig('simulation.pgf', dpi=1000, bbox_inches='tight')
 
 
     # fig = plt.figure('Frequency analysis')
