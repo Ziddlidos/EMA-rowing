@@ -204,10 +204,10 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
             if not data == '':
                 server_data.append([time.time(), data])
                 imu_data[data[1]] = data[:]+['|']
-                if data[1] == 4:
+                if data[1] == 8:
                     startup_velocity = True
                     velocity_queue.put(data)
-                    print('{}'.format(source), ' - ', data[1])
+                    print('{}'.format(source), ' - ', data[1], ' ', time.time() - start_time)
                 # print('received stim data')
                 if real_time_plot:
                     update_plot()
@@ -374,99 +374,171 @@ def quat2euler(input_quat):
     yaw = math.atan2(t3, t4) * 180/math.pi
     
     return [roll, pitch, yaw]
-            
+
 def velocity_calculation(address, imu_data):
-    signal_change = []
-    orientation_signal = []
-    last_positive_concavity = -1
-    last_negative_concavity = -1
-    minimum_period = 0.25
+    import numpy as np
+    from scipy.signal import filtfilt, butter
+    
+    signal_change = [] # Store time and value of signal when sign of derivative changes
+    mean_crossing_samples = [] # Samples of the signal that cross the mean value, including time, value, period and derivative
+    orientation_signal = [] # Store the orientation signal of IMU
+    last_positive_concavity = -1 # Store the position of last point in signal_change with positive concavity
+    last_positive_concavity_applied = -1 # Store the position of last sample in signal_change with positive concavity used to calculate velocity
+    last_negative_concavity = -1 # Store the position of last point in signal_change with negative concavity
+    last_negative_concavity_applied = -1  # Store the position of last point in signal_change with negative concavity used to calculate velocity
+    minimum_period = 0.2 # Minimum time allowed between samples in signal_change to calculated velocity
     calculated_velocity = 0
+    initial_time = 0
+    sample_rate = 100
     
     while True:
         try:
-            start_time = time.time()
+            thread_start_time = time.time()
             queue_data = velocity_queue.get()
+            # Wait and execute when there is new IMU sample
             if queue_data != None:
-                print('Velocity Calculation - ' + str(queue_data[1]))
-                queue_data.extend(quat2euler(queue_data[2:6]))
+                queue_data.extend(quat2euler(queue_data[2:6])) # Append Euler angles data
                 orientation_signal.append({'time':queue_data[0], 'value':queue_data[-2]})
+                print('Velocity Calculation - ', str(queue_data[1]), ' ', str(queue_data[-2]))
                 if len(orientation_signal) > 1:
-                    orientation_signal[-1]['derivative'] = (orientation_signal[-1]['value']-orientation_signal[-2]['value']) / (orientation_signal[-1]['time']-orientation_signal[-2]['time'])
+                    # Resample time with constant sample rate
+                    orientation_signal[-1]['resampled_time'] = round((orientation_signal[-1]['time'] - initial_time)*sample_rate)/sample_rate
                     
-                if len(orientation_signal) > 2:
-                    if (orientation_signal[-2]['derivative'] <= 0 and orientation_signal[-1]['derivative'] > 0) or (orientation_signal[-2]['derivative'] < 0 and orientation_signal[-1]['derivative'] >= 0):
-                        signal_change.append({'time' : orientation_signal[-1]['time'], 'concavity' : 1, 'value' : orientation_signal[-1]['value']})
+                    # Remove sample with repeated resampled_time
+                    # if orientation_signal[-1]['resampled_time'] = orientation_signal[-2]['resampled_time']
+                        # del orientation_signal[-2]
+                        # if last_positive_concavity >= 0:
+                            # last_positive_concavity = last_positive_concavity - 1
                         
-                        if last_positive_concavity >= 0:
-                            signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_positive_concavity]['time']
+                        # if last_positive_concavity_applied >= 0:
+                            # last_positive_concavity_applied = last_positive_concavity_applied - 1
                         
-                        if last_negative_concavity >= 0:
-                            signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_negative_concavity]['value'])
+                        # if last_negative_concavity >= 0:
+                            # last_negative_concavity = last_negative_concavity - 1
+                        
+                        # if last_negative_concavity_applied >= 0:
+                            # last_negative_concavity_applied = last_negative_concavity_applied - 1
+
+                        # continue
+                    
+                    # Calculate discrete derivative of the orientation signal
+                    #orientation_signal[-1]['derivative'] = (orientation_signal[-1]['value']-orientation_signal[-2]['value']) / (orientation_signal[-1]['time']-orientation_signal[-2]['time'])
+                    
+                elif len(orientation_signal) == 1:
+                    # Resampled time is the same as the true time in the first sample
+                    initial_time = orientation_signal[-1]['time']
+                    orientation_signal[-1]['resampled_time'] = initial_time
+                
+                if (len(orientation_signal) > 0) and ((len(orientation_signal) % sample_rate) == 0):
+                    # Apply Butterworth lowpass filter in the last sample_rate samples
+                    x = []
+                    for i in range(-sample_rate, 0):
+                        x.append(orientation_signal[i]['value'])
                             
-                        if last_negative_concavity >= 0 and last_positive_concavity >= 0:
-                            calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
-                            print('Calculated Velocity Positive - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
-                            imu_data['velocity'] = str(calculated_velocity) + '|'
+                    nyquist = sample_rate/2
+                    order = 25
+                    cutoff = 12.5
+                    [b, a] = butter(order, cutoff / nyquist)
+                    if np.all(np.abs(np.roots(a)) < 1):
+                        filtered = filtfilt(b, a, x, method='pad')
+                        for i in range(-sample_rate, 0):
+                            orientation_signal[i]['filtered_value'] = filtered[i]
+                            
+                            if (i != -sample_rate) or (len(orientation_signal) > sample_rate):
+                                orientation_signal[i]['derivative'] = (orientation_signal[i]['filtered_value']-orientation_signal[i-1]['filtered_value']) / (orientation_signal[i]['resampled_time']-orientation_signal[i-1]['resampled_time'] if orientation_signal[i]['resampled_time']-orientation_signal[i-1]['resampled_time'] > 0.5/sample_rate else 1/sample_rate)
+                                
+                
+                #if len(orientation_signal) > 2: t if c else f
+                    for i in range(-(sample_rate - 1) if len(orientation_signal) > sample_rate else -(sample_rate - 2), 1):
+                    #for i in range(0,1):
+                        # Find the points in orientation signal when sign of derivative changes (-/+) and store in signal_change
+                        if (orientation_signal[i-2]['derivative'] <= 0 and orientation_signal[i-1]['derivative'] > 0) or (orientation_signal[i-2]['derivative'] < 0 and orientation_signal[i-1]['derivative'] >= 0):
+                            signal_change.append({'time' : orientation_signal[i-1]['time'], 'concavity' : 1, 'value' : orientation_signal[i-1]['filtered_value']})
+                            
+                            '''# Apply the period as the difference between current and last_positive_concavity(_applied) time samples
+                            if last_positive_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period and (last_negative_concavity == 0 or signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period/3):
+                                signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_positive_concavity_applied if last_positive_concavity_applied >= 0 else last_positive_concavity]['time']
+                            
+                                # Apply the amplitude as the difference between current and last_negative_concavity(_applied) value samples
+                                if last_negative_concavity >= 0:
+                                    signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_negative_concavity_applied if last_negative_concavity_applied >= 0 else last_negative_concavity]['value'])
+                                    
+                                # Apply the velocity as amplitude divided by period
+                                if last_negative_concavity >= 0 and (last_positive_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period):
+                                    calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
+                                    # calculated_velocity = 1/signal_change[-1]['period']
+                                    print('Calculated Velocity Positive - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                                    imu_data['velocity'] = str(calculated_velocity) + '|'
+                                    last_positive_concavity_applied =  len(signal_change) - 1'''
+                                
+                            last_positive_concavity = len(signal_change) - 1
                         
-                        last_positive_concavity = len(signal_change) - 1
+                        # Find the points in orientation signal when sign of derivative changes (+/-) and store in signal_change
+                        elif (orientation_signal[i-2]['derivative'] >= 0 and orientation_signal[i-1]['derivative'] < 0) or (orientation_signal[i-2]['derivative'] > 0 and orientation_signal[i-1]['derivative'] <= 0):
+                            signal_change.append({'time' : orientation_signal[i-1]['time'], 'concavity' : 0, 'value' : orientation_signal[i-1]['filtered_value']})
+                            
+                            '''# Apply the period as the difference between current and last_negative_concavity(_applied) time samples
+                            if last_negative_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period and (last_positive_concavity == 0 or signal_change[-1]['time'] - signal_change[last_positive_concavity]['time'] > minimum_period/3):
+                                signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_negative_concavity_applied if last_negative_concavity_applied >= 0 else last_negative_concavity]['time']
+                                
+                                # Apply the amplitude as the difference between current and last_positive_concavity(_applied) value samples
+                                if last_positive_concavity >= 0:
+                                    signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_positive_concavity_applied if last_positive_concavity_applied >= 0 else last_positive_concavity]['value'])
+                                
+                                # Apply the velocity as amplitude divided by period
+                                if (last_negative_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period) and last_positive_concavity >= 0:
+                                    calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
+                                    # calculated_velocity = 1/signal_change[-1]['period']
+                                    print('Calculated Velocity Negative - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                                    imu_data['velocity'] = str(calculated_velocity) + '|'
+                                    last_negative_concavity_applied = len(signal_change) - 1'''
+                            
+                            last_negative_concavity = len(signal_change) - 1
                         
-                    elif (orientation_signal[-2]['derivative'] >= 0 and orientation_signal[-1]['derivative'] < 0) or (orientation_signal[-2]['derivative'] > 0 and orientation_signal[-1]['derivative'] <= 0):
-                        signal_change.append({'time' : orientation_signal[-1]['time'], 'concavity' : 0, 'value' : orientation_signal[-1]['value']})
-                        
-                        if last_negative_concavity >= 0:
-                            signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_negative_concavity]['time']
-                        
-                        if last_positive_concavity >= 0:
-                            signal_change[-1]['amplitude'] = abs(signal_change[-1]['value'] - signal_change[last_positive_concavity]['value'])
-                        
-                        if last_negative_concavity >= 0 and last_positive_concavity >= 0:
-                            calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
-                            print('Calculated Velocity Negative - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
-                            imu_data['velocity'] = str(calculated_velocity) + '|'
-                        
-                        last_negative_concavity = len(signal_change) - 1
+                    # Find the mean value of the last minimum and maximum values
+                    mean_maximum = np.mean([dic['value'] for dic in signal_change if dic['concavity'] == 0][-10 if len(signal_change) >= 10 else -len(signal_change) : -1])
+                    mean_minimum = np.mean([dic['value'] for dic in signal_change if dic['concavity'] == 1][-10 if len(signal_change) >= 10 else -len(signal_change) : -1])
+                    mean_signal_value = (mean_maximum + mean_minimum)/2
+                    # Find the mean value crossing points in the last sample_rate filtered samples
+                    for i in range(-(sample_rate) if len(orientation_signal) > sample_rate else -(sample_rate - 1), -1):
+                        if ((orientation_signal[i-1]['filtered_value'] < mean_signal_value) and (orientation_signal[i]['filtered_value'] >= mean_signal_value)) or ((orientation_signal[i-1]['filtered_value'] > mean_signal_value) and (orientation_signal[i]['filtered_value'] <= mean_signal_value)):
+                            mean_crossing_samples.append({'time' : orientation_signal[i-1]['time'], 'value' : orientation_signal[i-1]['filtered_value'], 'derivative' : orientation_signal[i-1]['derivative']})
+                            if len(mean_crossing_samples) > 0:
+                                mean_crossing_samples[-1]['period'] = mean_crossing_samples[-1]['time'] - mean_crossing_samples[-2]['time']
+                                calculated_velocity = abs(1)/mean_crossing_samples[-1]['period']
+                                imu_data['velocity'] = str(calculated_velocity) + '|'
+                                print('Calculated Velocity Zero - ', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
                     
+                # Keep the size of the arrays below a defined threshold
                 if len(orientation_signal) > 1000:
-                    del orientation_signal[0]
+                    del orientation_signal[0:sample_rate]
                 
                 if len(signal_change) > 200:
-                    del signal_change[0]
-                    
+                    # If the array is too big and the first elements are deleted, the positions must be updated
                     if last_positive_concavity >= 0:
-                        last_positive_concavity = last_positive_concavity - 1
+                        last_positive_concavity = last_positive_concavity - (len(signal_change) - 200)
+                    
+                    if last_positive_concavity_applied >= 0:
+                        last_positive_concavity_applied = last_positive_concavity_applied - (len(signal_change) - 200)
                     
                     if last_negative_concavity >= 0:
-                        last_negative_concavity = last_negative_concavity - 1
+                        last_negative_concavity = last_negative_concavity - (len(signal_change) - 200)
+                    
+                    if last_negative_concavity_applied >= 0:
+                        last_negative_concavity_applied = last_negative_concavity_applied - (len(signal_change) - 200)
+                    
+                    del signal_change[0:(len(signal_change) - 200)]
                 
             else:
                 print('No velocity to calculate')
             
-            print(time.time() - start_time, ' - ', queue_data[1], ' ' , calculated_velocity)
-            print()
-            '''sleep_time = 0.0041666666666666666666666666666 - (time.time() - start_time) # Runs at 240 Hz max
+            print(time.time() - thread_start_time, ' - ', queue_data[1], ' ' , calculated_velocity, '\n')
+            '''sleep_time = 0.0041666666666666666666666666666 - (time.time() - thread_start_time) # Runs at 240 Hz max
             if sleep_time > 0:
                 time.sleep(sleep_time)'''
 
         except Exception as e:
                 print('Velocity Calculation - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
-
-'''def velocity_designator(address, imu_data):
-    global startup_velocity, velocity_queue
-    
-    try:
-        processes = []
-        while True: #TODO - condition to break the loop and join threads
-            data = velocity_queue.get()
-            p = multiprocessing.Process(target=velocity_calculation, args=(data[1], imu_data))
-            p.start()
-            processes.append(p)
-        
-        for p in processes:
-            p.join()
-            
-    except Exception as e:
-        print('Velocity Designator - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))'''
 
 
 manager = multiprocessing.Manager()
