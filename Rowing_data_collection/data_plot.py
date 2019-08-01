@@ -29,7 +29,7 @@ from matplotlib.lines import Line2D
 mode = 'switchingLDA'
 # mode = 'manual'
 
-simulate_with_different_data = True
+simulate_with_different_data = False
 
 normal_plot = True
 # dash_plot = False
@@ -53,21 +53,21 @@ imu_forearm_id = 4
 imu_arm_id = 5
 
 
-initial_time = 60
-total_time = 150
+initial_time = 54
+total_time = 170
 
 accel_threshold = 0.05
 
 # classes = [-1, 1, 0]
 #Direct input
-plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
+# plt.rcParams['text.latex.preamble']=[r"\usepackage{lmodern}"]
 #Options
-params = {'text.usetex' : True,
-          'font.size' : 11,
-          'font.family' : 'lmodern',
-          'text.latex.unicode': True,
-          }
-plt.rcParams.update(params)
+# params = {'text.usetex' : True,
+#           'font.size' : 11,
+#           'font.family' : 'lmodern',
+#           'text.latex.unicode': True,
+#           }
+# plt.rcParams.update(params)
 
 ###############################################################################################
 ###############################################################################################
@@ -243,7 +243,7 @@ def plot_data():
     # ax.legend(handles=legend_elements, fancybox=False, framealpha=1)
     ax6.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
 
-    plt.savefig('angle_and_accel_detail.pdf', dpi=1000, bbox_inches='tight')
+    # plt.savefig('angle_and_accel_detail.pdf', dpi=1000, bbox_inches='tight')
 
 
     div_factor = 1
@@ -267,7 +267,7 @@ def plot_data():
     ax2.set_yticks([-1, 0, 1])
     ax2.set_ylabel('Flex=-1, Off=0, Ext=1')
 
-    plt.xlim([100, 110])
+    # plt.xlim([100, 110])
 
     legend_elements = [Line2D([0], [0], color='C0', marker='o', label='flexion'),
                        Line2D([0], [0], color='C1', marker='o', label='off'),
@@ -276,7 +276,7 @@ def plot_data():
     # ax.legend(handles=legend_elements, fancybox=False, framealpha=1)
     ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
 
-    plt.savefig('labeling.pdf', dpi=1000, bbox_inches='tight')
+    # plt.savefig('labeling.pdf', dpi=1000, bbox_inches='tight')
     # plt.savefig('labeling.pgf', dpi=1000, bbox_inches='tight')
 
     # plt.figure('Feature crossing')
@@ -390,7 +390,7 @@ if mode == 'singleLDA':
     ax.set_ylabel('$2^{nd} $ component')
     plt.legend()
 
-    plt.savefig('separation.pdf', dpi=1000, bbox_inches='tight')
+    # plt.savefig('separation.pdf', dpi=1000, bbox_inches='tight')
     # plt.savefig('separation.pgf', dpi=1000, bbox_inches='tight')
 
     # plt.plot(new_x_0_mean, new_y_0[0],
@@ -490,7 +490,7 @@ else:
         # plt.scatter(np.array(X)[:, 0], np.array(y) + 3)
         plt.ylim([-2, 2])
         plt.subplots_adjust(hspace=0.6)
-        plt.savefig('separation.pdf', dpi=1000, bbox_inches='tight')
+        # plt.savefig('separation.pdf', dpi=1000, bbox_inches='tight')
 
 print('scores: {}'.format(scores))
 # plt.show()
@@ -675,9 +675,9 @@ if normal_plot:
                 ax[i].set_ylabel('Flex=-1, Off=0, Ext=1')
             elif i == 2:
                 ax[i].set_xlabel('time [s]')
-        plt.xlim([100, 110])
+        # plt.xlim([100, 110])
         plt.subplots_adjust(hspace=0.6)
-        plt.savefig('individual_prediction.pdf', dpi=1000, bbox_inches='tight')
+        # plt.savefig('individual_prediction.pdf', dpi=1000, bbox_inches='tight')
 
     if simulate_with_different_data:
         # fig = plt.figure('Comparison between original and new data')
@@ -703,11 +703,11 @@ if normal_plot:
                            Line2D([0], [0], color='C1', label='FES')]
         ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
 
-        plt.xlim([0, 283])
-        plt.savefig('simulation_with_different_data_detail.pdf', dpi=1000, bbox_inches='tight')
+        # plt.xlim([0, 283])
+        # plt.savefig('simulation_with_different_data_detail.pdf', dpi=1000, bbox_inches='tight')
 
-        plt.xlim([57, 126])
-        plt.savefig('simulation_with_different_data_long.pdf', dpi=1000, bbox_inches='tight')
+        # plt.xlim([57, 126])
+        # plt.savefig('simulation_with_different_data_long.pdf', dpi=1000, bbox_inches='tight')
 
         # plt.savefig('simulation_with_different_data.pgf', dpi=1000, bbox_inches='tight')
     else:
@@ -730,12 +730,12 @@ if normal_plot:
                            Line2D([0], [0], color='C1', label='prediction')]
         ax2.legend(handles=legend_elements, fancybox=False, framealpha=1, loc='upper left')
 
-        plt.xlim([100, 110])
-        plt.savefig('simulation_detail.pdf', dpi=1000, bbox_inches='tight')
+        # plt.xlim([100, 110])
+        # plt.savefig('simulation_detail.pdf', dpi=1000, bbox_inches='tight')
         # plt.savefig('simulation.pgf', dpi=1000, bbox_inches='tight')
 
-        plt.xlim([70, 140])
-        plt.savefig('simulation_long.pdf', dpi=1000, bbox_inches='tight')
+        # plt.xlim([70, 140])
+        # plt.savefig('simulation_long.pdf', dpi=1000, bbox_inches='tight')
 
     # fig = plt.figure('Frequency analysis')
     # plt.plot(t[1:], 1/np.diff(t))

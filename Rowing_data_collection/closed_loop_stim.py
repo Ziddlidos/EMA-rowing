@@ -19,10 +19,10 @@ import threading
 
 # TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 
 extension_current = 46
-flexion_current = 56
+flexion_current = 52
 stim_freq = 50
 stim_pw = 400
 

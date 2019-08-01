@@ -19,7 +19,7 @@ import threading
 
 # TODO close connection to serial port on exit() and stop stimulation
 
-stimulation = False
+stimulation = True
 
 connection = False
 
