@@ -49,12 +49,12 @@ output_command_filter_size = 3
 number_of_stds = 1
 
 
-imu_forearm_id = 4
-imu_arm_id = 5
+imu_forearm_id = 3
+imu_arm_id = 4
 
 
-initial_time = 54
-total_time = 170
+initial_time = 240
+total_time = 270
 
 accel_threshold = 0.05
 
@@ -215,7 +215,7 @@ def plot_data():
     ax4.set_ylabel('Flex=-1, Off=0, Ext=1')
     # ax3.set_xlabel('time [s]')
 
-    plt.xlim([100, 110])
+    # plt.xlim([100, 110])
     legend_elements = [Line2D([0], [0], color='C0', label='angle'),
                        Line2D([0], [0], color='k', label='FES'), ]
     # ax.legend(handles=legend_elements, fancybox=False, framealpha=1)

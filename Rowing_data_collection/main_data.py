@@ -37,8 +37,8 @@ running = multiprocessing.Value('b')
 start_time = time.time()
 if real_time_plot:
 
-    imu1_id = 5
-    imu2_id = 8
+    imu1_id = 3
+    imu2_id = 4
     for i in range(size_of_graph):
         t[i] = 0
         ang[i] = 0

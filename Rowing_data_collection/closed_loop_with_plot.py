@@ -24,8 +24,8 @@ app.processEvents()
 filename = source_file.filename[0][0]
 classifier = filename
 
-imu_forearm_id = 4
-imu_arm_id = 5
+imu_forearm_id = 3
+imu_arm_id = 4
 
 imu_forearm = IMU(imu_forearm_id)
 imu_arm = IMU(imu_arm_id)

@@ -21,8 +21,8 @@ import threading
 
 stimulation = True
 
-extension_current = 46
-flexion_current = 52
+extension_current = 0
+flexion_current = 0
 stim_freq = 50
 stim_pw = 400
 
