@@ -80,7 +80,7 @@ while statWait:
     if len(parametros) > 1:
         statWait = False
 
-parametros = 'c010d000e000x000p300f040m001'
+parametros = 'c004d000e000x000p300f040m001'
         
 if stimulation:
     serialStimulator = serial.Serial(stimulatorPort, baudrate=115200, timeout=0.1)
@@ -176,20 +176,20 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
         #    pass
         #state = int(sock.read(1))  # state = int(sock.read(1))
         print('Running stim:',receiveStim)
-        state_str = 0 if receiveStim > 0 else 3 #input('New mode: ')
-        state = int(state_str)
+        #state_str = 0 if receiveStim < 0 else 3 #input('New mode: ')
+        state = int(receiveStim)
         # print(state)
         if mode == 1:  # Extensão B00000011 
-            if state == 0:
+            if state == 1:
+                stim_state = 'extension1'
+                pw_str = [pw, 0, 0, 0, 0, 0, 0, 0]
+            elif state == -1:
+                stim_state = 'flexion1'
+                pw_str = [0, pw, 0, 0, 0, 0, 0, 0]
+            else:
                 stim_state = 'stop1'
                 pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
-            elif state == 1:
-                stim_state = 'extension1'
-                pw_str = [pw, 0, 0, 0, 0, 0, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion1'
-                pw_str = [0, pw, 0, 0, 0, 0, 0, 0]
         elif mode == 2:  # Flexão B00001100
             if state == 0:
                 stim_state = 'stop'

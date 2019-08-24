@@ -397,7 +397,7 @@ def quat2euler(input_quat):
     
     return [roll, pitch, yaw]
 
-def velocity_calculation(address, imu_data):
+def velocity_calculation(address, imu_data, stim_leg):
     import numpy as np
     from scipy.signal import filtfilt, butter
     
@@ -506,6 +506,7 @@ def velocity_calculation(address, imu_data):
 #else
                                             calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
 #endif
+                                            stim_leg[0] = 1
                                             break
 #else
 #ifdef period_only
@@ -513,6 +514,7 @@ def velocity_calculation(address, imu_data):
 #else
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
+                                    stim_leg[0] = 1
 #endif
                                     
 #ifdef velocity_print
@@ -553,6 +555,7 @@ def velocity_calculation(address, imu_data):
 #else
                                             calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
 #endif
+                                            stim_leg[0] = -1
                                             break
 #else
 #ifdef period_only
@@ -560,6 +563,7 @@ def velocity_calculation(address, imu_data):
 #else
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
+                                    stim_leg[0] = -1
 #endif
 
 #ifdef velocity_print
@@ -613,6 +617,7 @@ def velocity_calculation(address, imu_data):
 #else
                         calculated_velocity = abs(mean_crossing_samples[-1]['derivative'])/mean_crossing_samples[-1]['period']
 #endif
+                        stim_leg[0] = -1 if signal_change[-1]['concavity'] == 0 else 1
                         imu_data['velocity'] = str(calculated_velocity) + '|'
 #ifdef velocity_print
                         print('Calculated Velocity Zero - ', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
@@ -653,8 +658,9 @@ def velocity_calculation(address, imu_data):
                 print('Velocity Calculation - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
 
 
-def stim_server(address, port, imu_data):
+def stim_server(address, port, imu_data, stim_leg):
     stim_frequency = 1
+    min_vel_stim = 5
     while True:
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -671,12 +677,13 @@ def stim_server(address, port, imu_data):
             while True:
                 loop_start = time.time()
                 if s:
-                    if 'velocity' in imu_data:
-                        print('Sent message: {}'.format(imu_data['velocity']))
-                        out_data = json.dumps(float(imu_data['velocity'][0:-1]))
+                    print(imu_data['velocity'][0:-1], stim_leg[0])
+                    if 'velocity' in imu_data and float(imu_data['velocity'][0:-1]) >= min_vel_stim:
+                        print('Sent message:',stim_leg[0])
+                        out_data = json.dumps(int(stim_leg[0]))
                     else:
-                        print('Sent message: -1')
-                        out_data = json.dumps(float(-1))
+                        print('Sent message: 0')
+                        out_data = json.dumps(float(0))
                     conn.send(out_data.encode())
                     print(out_data)
                 else:
@@ -693,6 +700,7 @@ def stim_server(address, port, imu_data):
 
 manager = multiprocessing.Manager()
 imu_data = manager.dict()
+stim_leg = manager.list(range(1))
 # imu_json = multiprocessing.Value()
 
 if __name__ == '__main__':
@@ -712,9 +720,9 @@ if __name__ == '__main__':
     # sserver2.start()
     sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
     sserver3.start()
-    sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data))
+    sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data, stim_leg))
     sserver4.start()
-    velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data))
+    velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data, stim_leg))
     velocity_process.start()
     # server(('', 50000))
 
