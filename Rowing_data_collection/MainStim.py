@@ -14,11 +14,14 @@ import serial.tools.list_ports
 import io
 from multiprocessing.connection import Client
 import threading
-# import socket
+import socket
+import sys
+import json
 
 #TODO close connection to serial port on exit() and stop stimulation
+receiveStim = 1
 
-stimulation = False
+stimulation = True
 
 connection = False
 try:
@@ -27,7 +30,7 @@ try:
 
     # server = socket.socket()
     # server.connect(address)
-    server.send('buttons')
+    server.send('stim')
     connection = True
 
     # print(a)
@@ -44,7 +47,7 @@ for w in a:
 
 # bd_addr = '/dev/cu.usbserial-1410'
 # stimulatorPort = 'stimPort'
-sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
+#sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
 time.sleep(5)
 current_str = [0,0,0,0,0,0,0,0]
 running = True
@@ -55,7 +58,7 @@ print("Conectando")
 statSend = True
 statWait = True
 
-sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
+#sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
 # while statSend == True:
 # time.sleep(1)
 # TODO make handshake
@@ -70,13 +73,15 @@ if temp == 'conectou':
 print("Conectado")
 
 parametros = 'No parameters'
-# statWait = True
+statWait = False
 while statWait:
     p = sock.readline()
     parametros = p[0:28]
     if len(parametros) > 1:
         statWait = False
 
+parametros = 'c010d000e000x000p300f040m001'
+        
 if stimulation:
     serialStimulator = serial.Serial(stimulatorPort, baudrate=115200, timeout=0.1)
     stim = stimulator.Stimulator(serialStimulator)  # chama a classe
@@ -130,8 +135,8 @@ def channels(mode):
 def change_current():
     global current_str
     print('Thread started')
-    while True:
-        current_str = input('New current: ')
+    while False:
+        current_str = input('New canal: ')
         current_str = current_str.split()
         current_str = [int(x) for x in current_str]
         print(current_str)
@@ -139,7 +144,7 @@ def change_current():
 # channels = 0b11111111
 
 def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, this_channels):
-    global current_str
+    global current_str, receiveStim
     # cria um vetor com as correntes para ser usado pela funcao update
     current_str = [current_CH12, current_CH12, current_CH34, current_CH34, current_CH56, current_CH56, current_CH78,
                    current_CH78]
@@ -159,29 +164,32 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
         current_str.append(current_CH34)
         current_str.append(current_CH34)
     '''
-    sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
-    # print("running")
+    #sock.write(b'a')  # envia 'a' sinalizando a conexao para o controlador
+    print("running")
 
     state = 0
     # print(state)
     stim_state = 'stop'
     pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
     while state != 3:
-        while sock.inWaiting() == 0:
-            pass
-        state = int(sock.read(1))  # state = int(sock.read(1))
+        #while sock.inWaiting() == 0:
+        #    pass
+        #state = int(sock.read(1))  # state = int(sock.read(1))
+        print('Running stim:',receiveStim)
+        state_str = 0 if receiveStim > 0 else 3 #input('New mode: ')
+        state = int(state_str)
         # print(state)
         if mode == 1:  # Extensão B00000011 
             if state == 0:
-                stim_state = 'stop'
+                stim_state = 'stop1'
                 pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
             # stim.stop()
             elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
+                stim_state = 'extension1'
+                pw_str = [pw, 0, 0, 0, 0, 0, 0, 0]
             elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                stim_state = 'flexion1'
+                pw_str = [0, pw, 0, 0, 0, 0, 0, 0]
         elif mode == 2:  # Flexão B00001100
             if state == 0:
                 stim_state = 'stop'
@@ -262,25 +270,44 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
             # para usar 6 ou 8 canais eh necessario copiar o codigo logo acima e mudar somente o vetor pw,
             # colocando-se pw no canal que se quer estimular
         if stimulation:
+            #current_str = [10, 10, 0, 0, 0, 0, 0, 0]
             stim.update(this_channels, pw_str, current_str)
-        print(stim_state, current_str)
+        print(stim_state, current_str, pw_str)
         if connection:
             # server.send(dict({'state':'Flexão', 'current':current_str}))
             server.send([time.time(), stim_state, current_str])
 
-
+# Connect to the server
+def connect_server():
+        global receiveStim
+        print('Connect server started')
+    #while True:
+        try:
+            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server.connect(('',50005))
+            out_data = json.dumps('Stim')
+            server.send(out_data.encode())
+            while True:
+                received_msg = str(server.recv(4096))[2:-1]
+                # print('Receive stim:', received_msg)
+                receiveStim = float(received_msg)
+        except Exception as e:
+            print('Connect_server - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+            
 def main():
     [current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels] = stim_setup()
     print(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
 
-    t = threading.Thread(target=change_current)
-    t.start()
+    # t = threading.Thread(target=change_current)
+    # t.start()
+    t2 = threading.Thread(target=connect_server)
+    t2.start()
     running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
 
     if stimulation:
         stim.stop()
         serialStimulator.close()
-    sock.close()
+    #sock.close()
 
     print("Saiu")
 

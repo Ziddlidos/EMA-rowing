@@ -23,10 +23,10 @@ import math
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyquaternion import Quaternion
-from pypreprocessor import pypreprocessor
 import json
 
 #exclude
+from pypreprocessor import pypreprocessor
 # run the lowpass filter in angle signal for velocity calculation
 #pypreprocessor.defines.append('lowpass')
 
@@ -37,10 +37,10 @@ pypreprocessor.defines.append('minmax')
 #pypreprocessor.defines.append('period_only')
 
 # calculate velocity with delay
-#pypreprocessor.defines.append('delay')
+pypreprocessor.defines.append('delay')
 
 # print velocity calculation data
-pypreprocessor.defines.append('velocity_print')
+#pypreprocessor.defines.append('velocity_print')
 
 pypreprocessor.output = 'main_data_out.py'
 pypreprocessor.removeMeta = True
@@ -408,10 +408,11 @@ def velocity_calculation(address, imu_data):
     last_positive_concavity_applied = -1 # Store the position of last sample in signal_change with positive concavity used to calculate velocity
     last_negative_concavity = -1 # Store the position of last point in signal_change with negative concavity
     last_negative_concavity_applied = -1  # Store the position of last point in signal_change with negative concavity used to calculate velocity
-    minimum_period = 0.2 # Minimum time allowed between samples in signal_change to calculated velocity
+    minimum_period = 0.33 # Minimum time allowed between samples in signal_change to calculated velocity
     calculated_velocity = 0
     initial_time = 0
     sample_rate = 100
+    min_vel_delay = 0.25
     
     while True:
         try:
@@ -494,13 +495,32 @@ def velocity_calculation(address, imu_data):
                                     
                                 # Apply the velocity as amplitude divided by period
                                 if last_negative_concavity >= 0 and (last_positive_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period):
+#ifdef delay
+                                    #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
+                                    selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 1 and 'amplitude' in dic]
+                                    for delayed_sample in range(0,len(selected_signal_change) - 1):
+                                        posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
+                                        if selected_signal_change[delayed_sample]['concavity'] == 1 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] < min(posterior_samples)):
+#ifdef period_only
+                                            calculated_velocity = 1/selected_signal_change[delayed_sample]['period']
+#else
+                                            calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
+#endif
+                                            break
+#else
 #ifdef period_only
                                     calculated_velocity = 1/signal_change[-1]['period']
 #else
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
+#endif
+                                    
 #ifdef velocity_print
+#ifdef delay
+                                    print('Calculated Velocity Positive - ', selected_signal_change[delayed_sample]['amplitude'], ' ', selected_signal_change[delayed_sample]['period'])
+#else
                                     print('Calculated Velocity Positive - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+#endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
                                     last_positive_concavity_applied =  len(signal_change) - 1
@@ -522,13 +542,32 @@ def velocity_calculation(address, imu_data):
                                 
                                 # Apply the velocity as amplitude divided by period
                                 if (last_negative_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period) and last_positive_concavity >= 0:
+#ifdef delay
+                                    #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
+                                    selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 0 and 'amplitude' in dic]
+                                    for delayed_sample in range(0,len(selected_signal_change) - 1):
+                                        posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
+                                        if selected_signal_change[delayed_sample]['concavity'] == 0 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] > max(posterior_samples)):
+#ifdef period_only
+                                            calculated_velocity = 1/selected_signal_change[delayed_sample]['period']
+#else
+                                            calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
+#endif
+                                            break
+#else
 #ifdef period_only
                                     calculated_velocity = 1/signal_change[-1]['period']
 #else
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
+#endif
+
 #ifdef velocity_print
+#ifdef delay
+                                    print('Calculated Velocity Negative - ', selected_signal_change[delayed_sample]['amplitude'], ' ', selected_signal_change[delayed_sample]['period'])
+#else
                                     print('Calculated Velocity Negative - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+#endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
                                     last_negative_concavity_applied = len(signal_change) - 1
@@ -614,6 +653,44 @@ def velocity_calculation(address, imu_data):
                 print('Velocity Calculation - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
 
 
+def stim_server(address, port, imu_data):
+    stim_frequency = 1
+    while True:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((address, port))
+            s.listen()
+            conn, addr = s.accept()
+            if s:
+                print('Connected to {}'.format(addr))
+                source = str(conn.recv(4096))[3:-2]
+                print('Source: {}'.format(source))
+                if source != 'Stim':
+                    continue
+            while True:
+                loop_start = time.time()
+                if s:
+                    if 'velocity' in imu_data:
+                        print('Sent message: {}'.format(imu_data['velocity']))
+                        out_data = json.dumps(float(imu_data['velocity'][0:-1]))
+                    else:
+                        print('Sent message: -1')
+                        out_data = json.dumps(float(-1))
+                    conn.send(out_data.encode())
+                    print(out_data)
+                else:
+                    print('Disconnected from {}'.format(addr))
+                    break
+                loop_remaining = 1/stim_frequency - (time.time() - loop_start)
+                if loop_remaining > 0:
+                    time.sleep(loop_remaining)
+
+        except Exception as e:
+            print('Stim - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+            print('Connection  to {} closed'.format(source))
+
+
 manager = multiprocessing.Manager()
 imu_data = manager.dict()
 # imu_json = multiprocessing.Value()
@@ -635,6 +712,8 @@ if __name__ == '__main__':
     # sserver2.start()
     sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
     sserver3.start()
+    sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data))
+    sserver4.start()
     velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data))
     velocity_process.start()
     # server(('', 50000))
@@ -648,4 +727,5 @@ if __name__ == '__main__':
     running.value = 0
     mserver.terminate()
     sserver3.terminate()
+    sserver4.terminate()
     velocity_process.terminate()
