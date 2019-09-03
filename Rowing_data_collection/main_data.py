@@ -24,23 +24,30 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from pyquaternion import Quaternion
 import json
+import numpy as np
 
 #exclude
 from pypreprocessor import pypreprocessor
 # run the lowpass filter in angle signal for velocity calculation
 #pypreprocessor.defines.append('lowpass')
 
-# calculate velocity with min and max values or with mean values
-pypreprocessor.defines.append('minmax')
+# calculate velocity with min and max values
+#pypreprocessor.defines.append('minmax')
+
+# calculate velocity with crossing mean values
+#pypreprocessor.defines.append('cross_mean')
 
 # calculate velocity with amplitude or derivative, or only with period
 #pypreprocessor.defines.append('period_only')
 
+#calculate velocity with predominant frequency of Fourier transform of the signal
+pypreprocessor.defines.append('fourier')
+
 # calculate velocity with delay
-pypreprocessor.defines.append('delay')
+#pypreprocessor.defines.append('delay')
 
 # print velocity calculation data
-#pypreprocessor.defines.append('velocity_print')
+pypreprocessor.defines.append('velocity_print')
 
 pypreprocessor.output = 'main_data_out.py'
 pypreprocessor.removeMeta = True
@@ -61,7 +68,7 @@ startup_velocity = False
 velocity_queue = multiprocessing.Queue()
 if real_time_plot:
 
-    imu1_id = 4
+    imu1_id = 8
     imu2_id = 3
     for i in range(size_of_graph):
         t[i] = 0
@@ -89,10 +96,17 @@ if real_time_plot:
     def update():
         global curve_x, t, curve_y, ang
         # print('New data: ', x[-1])
+        # print('New data: ', ang[-1])
 
-
-        curve_x.setData(t[-size_of_graph:-1], ang[-size_of_graph:-1])
-        curve_y.setData(t[-size_of_graph:-1], fes[-size_of_graph:-1])
+        curve_x.setData(t[-size_of_graph:], ang[-size_of_graph:])
+        #curve_y.setData(t[-size_of_graph], fes[-size_of_graph:])
+        calculate_fourier = True
+        if calculate_fourier:
+            freq_sample_size = 100
+            sp = np.fft.fft(ang[-freq_sample_size:])
+            freq = np.fft.fftfreq(freq_sample_size, (t[-1]-t[-freq_sample_size])/(freq_sample_size-1))
+            curve_y.setData(freq, sp.imag*max(np.abs(ang[-size_of_graph:]))/max(np.abs(sp.imag)))
+            print('Main freq -', freq[np.where(sp.imag == np.amax(sp.imag))[0]])
         # ptr = 0
         # if ptr == 0:
         #     my_plot.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
@@ -193,10 +207,12 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
                 # print('ID not known')
                 return
 
-            new_angle = calculate_distance(imu1[-1], imu2[-1])
-
+            #new_angle = calculate_distance(imu1[-1], imu2[-1])
+            new_angle = quat2euler(data[2:6])
+            
             ang[0:-1] = ang[1:]
-            ang[-1] = new_angle
+            #ang[-1] = new_angle
+            ang[-1] = new_angle[1]
 
             fes[0:-1] = fes[1:]
             fes[-1] = fes[-2]
@@ -413,6 +429,7 @@ def velocity_calculation(address, imu_data, stim_leg):
     initial_time = 0
     sample_rate = 100
     min_vel_delay = 0.25
+    fourier_counter = 0
     
     while True:
         try:
@@ -519,9 +536,9 @@ def velocity_calculation(address, imu_data, stim_leg):
                                     
 #ifdef velocity_print
 #ifdef delay
-                                    print('Calculated Velocity Positive - ', selected_signal_change[delayed_sample]['amplitude'], ' ', selected_signal_change[delayed_sample]['period'])
+                                    print('Calculated Velocity Positive -', selected_signal_change[delayed_sample]['amplitude'], selected_signal_change[delayed_sample]['period'])
 #else
-                                    print('Calculated Velocity Positive - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                                    print('Calculated Velocity Positive -', signal_change[-1]['amplitude'], signal_change[-1]['period'])
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
@@ -568,9 +585,9 @@ def velocity_calculation(address, imu_data, stim_leg):
 
 #ifdef velocity_print
 #ifdef delay
-                                    print('Calculated Velocity Negative - ', selected_signal_change[delayed_sample]['amplitude'], ' ', selected_signal_change[delayed_sample]['period'])
+                                    print('Calculated Velocity Negative -', selected_signal_change[delayed_sample]['amplitude'], selected_signal_change[delayed_sample]['period'])
 #else
-                                    print('Calculated Velocity Negative - ', signal_change[-1]['amplitude'], ' ', signal_change[-1]['period'])
+                                    print('Calculated Velocity Negative -', signal_change[-1]['amplitude'], signal_change[-1]['period'])
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
@@ -596,8 +613,7 @@ def velocity_calculation(address, imu_data, stim_leg):
                     # print('Minimum mean and stdev: ', mean_minimum, ' ', stdev_minimum)
                     # print('Maximum mean and stdev: ', mean_maximum, ' ', stdev_maximum)
                     # print('Mean signal value - ', mean_signal_value)
-#ifdef minmax
-#else
+#ifdef cross_mean
                 # Find the mean value crossing points in the last sample_rate filtered samples
 #ifdef lowpass
                     for i in range(-(sample_rate) if len(orientation_signal) > sample_rate else -(sample_rate - 1), 0):
@@ -620,7 +636,28 @@ def velocity_calculation(address, imu_data, stim_leg):
                         stim_leg[0] = -1 if signal_change[-1]['concavity'] == 0 else 1
                         imu_data['velocity'] = str(calculated_velocity) + '|'
 #ifdef velocity_print
-                        print('Calculated Velocity Zero - ', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
+                        print('Calculated Velocity Zero -', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
+#endif
+#endif
+
+#ifdef fourier
+                fourier_counter = fourier_counter + 1
+                if fourier_counter%100 == 0:
+                    freq_sample_size = 100
+                    selected_samples = [dic['value'] for dic in orientation_signal][-freq_sample_size:]
+                    sp = np.fft.fft(selected_samples)
+                    freq = np.fft.fftfreq(freq_sample_size, (orientation_signal[-1]['time']-orientation_signal[-freq_sample_size]['time'])/(freq_sample_size-1))
+                    main_freq = abs(freq[np.where(sp.imag == np.amax(sp.imag))[0]][0])
+#ifdef period_only
+                    amplitude = 1
+                    calculated_velocity = main_freq
+#else
+                    amplitude = (max(selected_samples)-min(selected_samples))/2
+                    calculated_velocity = main_freq*amplitude
+#endif
+                    imu_data['velocity'] = str(calculated_velocity) + '|'
+#ifdef velocity_print
+                    print('Calculated Velocity Fourier -', main_freq, amplitude)
 #endif
 #endif
                     
@@ -659,7 +696,7 @@ def velocity_calculation(address, imu_data, stim_leg):
 
 
 def stim_server(address, port, imu_data, stim_leg):
-    stim_frequency = 1
+    stim_frequency = 50
     min_vel_stim = 5
     while True:
         try:
