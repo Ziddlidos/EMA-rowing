@@ -122,7 +122,7 @@ def on_exit(sig, frame):
     # global imu_data
     # print(imu_data)
     # now = datetime.datetime.now()
-    # filename = now.strftime('%Y%m%d%H%M') + '_IMU_data.txt'
+    # filename = now.strftime('%Y%m%d%H%M%S') + '_IMU_data.txt'
     # f = open(filename, 'w+')
     # [f.write(i) for i in imu_data]
     # f.close()
@@ -304,7 +304,7 @@ def do_stuff_socket(client, source, x, channel):
         print('Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
         print('Connection  to {} closed'.format(source))
         now = datetime.datetime.now()
-        filename = now.strftime('%Y%m%d%H%M') + '_' + source + '_ch' + str(channel) + '_data.txt'
+        filename = now.strftime('%Y%m%d%H%M%S') + '_' + source + '_ch' + str(channel) + '_data.txt'
         f = open(filename, 'w+')
         # server_timestamp, client_timestamp, msg
         # if IMU, msg = id, quaternions
@@ -430,6 +430,10 @@ def velocity_calculation(address, imu_data, stim_leg):
     sample_rate = 100
     min_vel_delay = 0.25
     fourier_counter = 0
+
+    now = datetime.datetime.now()
+    filename = now.strftime('%Y%m%d%H%M%S') + '_Velocity_data.txt'
+    velocity_file = open(filename, 'w+')
     
     while True:
         try:
@@ -542,7 +546,10 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
+                                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.flush()
                                     last_positive_concavity_applied =  len(signal_change) - 1
+                                    
 #endif
                                 
                             last_positive_concavity = len(signal_change) - 1
@@ -591,6 +598,8 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
+                                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.flush()
                                     last_negative_concavity_applied = len(signal_change) - 1
 #endif
                             
@@ -635,6 +644,8 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
                         stim_leg[0] = -1 if signal_change[-1]['concavity'] == 0 else 1
                         imu_data['velocity'] = str(calculated_velocity) + '|'
+                        velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                        velocity_file.flush()
 #ifdef velocity_print
                         print('Calculated Velocity Zero -', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
 #endif
@@ -656,6 +667,8 @@ def velocity_calculation(address, imu_data, stim_leg):
                     calculated_velocity = main_freq*amplitude
 #endif
                     imu_data['velocity'] = str(calculated_velocity) + '|'
+                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                    velocity_file.flush()
 #ifdef velocity_print
                     print('Calculated Velocity Fourier -', main_freq, amplitude)
 #endif
@@ -693,6 +706,7 @@ def velocity_calculation(address, imu_data, stim_leg):
 
         except Exception as e:
                 print('Velocity Calculation - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+                velocity_file.close()
 
 
 def stim_server(address, port, imu_data, stim_leg):
