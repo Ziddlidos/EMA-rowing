@@ -546,7 +546,7 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
                                     velocity_file.flush()
                                     last_positive_concavity_applied =  len(signal_change) - 1
                                     
@@ -598,7 +598,7 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
 #endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
                                     velocity_file.flush()
                                     last_negative_concavity_applied = len(signal_change) - 1
 #endif
@@ -644,7 +644,7 @@ def velocity_calculation(address, imu_data, stim_leg):
 #endif
                         stim_leg[0] = -1 if signal_change[-1]['concavity'] == 0 else 1
                         imu_data['velocity'] = str(calculated_velocity) + '|'
-                        velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                        velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
                         velocity_file.flush()
 #ifdef velocity_print
                         print('Calculated Velocity Zero -', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
@@ -667,7 +667,7 @@ def velocity_calculation(address, imu_data, stim_leg):
                     calculated_velocity = main_freq*amplitude
 #endif
                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                    velocity_file.write(str(time.time()) + ' ' + str(calculated_velocity) + '\r\n')
+                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
                     velocity_file.flush()
 #ifdef velocity_print
                     print('Calculated Velocity Fourier -', main_freq, amplitude)
