@@ -2,7 +2,7 @@ from data_processing import GetFilesToLoad
 from PyQt5.QtWidgets import QApplication
 from multiprocessing.connection import Client
 import sys
-from time import sleep
+import time
 
 # Choose file
 app = QApplication(sys.argv)
@@ -42,9 +42,12 @@ with open(filename) as inputfile:
 def simulation():
     global timestamp, id, w, x, y, z, acc_x, acc_y, acc_z, server, connection
     print('Sending data...')
+    loop_time = time.time()
     for i in range(1, len(timestamp)):
         msg = [timestamp[i], id[i], w[i], x[i], y[i], z[i], acc_x[i], acc_y[i], acc_z[i]]
-        sleep(timestamp[i] - timestamp[i - 1])
+        sleep_reduction = time.time() - loop_time
+        time.sleep(timestamp[i] - timestamp[i - 1] - (sleep_reduction if sleep_reduction < (timestamp[i] - timestamp[i - 1]) else 0))
+        loop_time = time.time()
         if connection:
             server.send(msg)
 

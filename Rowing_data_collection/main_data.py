@@ -636,7 +636,7 @@ def velocity_calculation(address, imu_data, stim_leg):
                             if len(mean_crossing_samples) > 1:
                                 mean_crossing_samples[-1]['period'] = mean_crossing_samples[-1]['time'] - mean_crossing_samples[-2]['time']
                                 
-                    if len(mean_crossing_samples) > 0:            
+                    if len(mean_crossing_samples) > 1:            
 #ifdef period_only
                         calculated_velocity = 1/mean_crossing_samples[-1]['period']
 #else
