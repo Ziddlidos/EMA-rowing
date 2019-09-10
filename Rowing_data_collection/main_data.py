@@ -32,7 +32,7 @@ from pypreprocessor import pypreprocessor
 #pypreprocessor.defines.append('lowpass')
 
 # calculate velocity with min and max values
-#pypreprocessor.defines.append('minmax')
+pypreprocessor.defines.append('minmax')
 
 # calculate velocity with crossing mean values
 #pypreprocessor.defines.append('cross_mean')
@@ -41,13 +41,13 @@ from pypreprocessor import pypreprocessor
 #pypreprocessor.defines.append('period_only')
 
 #calculate velocity with predominant frequency of Fourier transform of the signal
-pypreprocessor.defines.append('fourier')
+#pypreprocessor.defines.append('fourier')
 
 # calculate velocity with delay
 #pypreprocessor.defines.append('delay')
 
 # print velocity calculation data
-pypreprocessor.defines.append('velocity_print')
+#pypreprocessor.defines.append('velocity_print')
 
 pypreprocessor.output = 'main_data_out.py'
 pypreprocessor.removeMeta = True
@@ -65,7 +65,6 @@ fes = multiprocessing.Array('d', size_of_graph)
 running = multiprocessing.Value('b')
 start_time = time.time()
 startup_velocity = False
-velocity_queue = multiprocessing.Queue()
 if real_time_plot:
 
     imu1_id = 8
@@ -175,7 +174,7 @@ def calculate_distance(q0, q1):
     return new_angle
 
 
-def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
+def do_stuff(client, source, t, ang, fes, start_time, running, imu_data, velocity_queue):
     def save_data():
         now = datetime.datetime.now()
         filename = now.strftime('%Y%m%d%H%M%S') + '_' + source + '_data.txt'
@@ -189,7 +188,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
     imu1 = [Quaternion(1, 0, 0, 0)]
     imu2 = [Quaternion(1, 0, 0, 0)]
     def update_plot():
-        global t, ang, fes, start_time, startup_velocity, velocity_queue
+        global t, ang, fes, start_time, startup_velocity
 
         t[0:-1] = t[1:]
         t[-1] = time.time() - start_time
@@ -245,6 +244,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data):
                 if data[1] == 8:
                     startup_velocity = True
                     velocity_queue.put(data)
+                    #print('Received data:',data)
                     #print('{}'.format(source), ' - ', data[1], ' ', time.time() - start_time)
                 # print('received stim data')
                 if real_time_plot:
@@ -313,7 +313,7 @@ def do_stuff_socket(client, source, x, channel):
         f.close()
 
 
-def server(address, port, t, ang, fes, start_time, running, imu_data):
+def server(address, port, t, ang, fes, start_time, running, imu_data, velocity_queue):
     serv = Listener((address, port))
     # s = socket.socket()
     # s.bind(address)
@@ -325,7 +325,7 @@ def server(address, port, t, ang, fes, start_time, running, imu_data):
         print('Connected to {}'.format(serv.last_accepted))
         source = client.recv()
         print('Source: {}'.format(source))
-        p = multiprocessing.Process(target=do_stuff, args=(client, source, t, ang, fes, start_time, running, imu_data))
+        p = multiprocessing.Process(target=do_stuff, args=(client, source, t, ang, fes, start_time, running, imu_data, velocity_queue))
         # do_stuff(client, addr)
         p.start()
 
@@ -413,7 +413,8 @@ def quat2euler(input_quat):
     
     return [roll, pitch, yaw]
 
-def velocity_calculation(address, imu_data, stim_leg):
+def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
+    #print('oi0')
     import numpy as np
     from scipy.signal import filtfilt, butter
     
@@ -749,14 +750,16 @@ def stim_server(address, port, imu_data, stim_leg):
             print('Connection  to {} closed'.format(source))
 
 
-manager = multiprocessing.Manager()
-imu_data = manager.dict()
-stim_leg = manager.list(range(1))
 # imu_json = multiprocessing.Value()
 
 if __name__ == '__main__':
+    manager = multiprocessing.Manager()
+    imu_data = manager.dict()
+    stim_leg = manager.list(range(1))
+    velocity_queue = multiprocessing.Queue()
+
     # mserver = multiprocessing.Process(target=server, args=('', 50001, imu_data))
-    mserver = multiprocessing.Process(target=server, args=('', 50001, t, ang, fes, start_time, running, imu_data))
+    mserver = multiprocessing.Process(target=server, args=('', 50001, t, ang, fes, start_time, running, imu_data, velocity_queue,))
     # mserver = threading.Thread(target=server, args=(('', 50001),))
     running.value = 1
     mserver.start()
@@ -769,11 +772,11 @@ if __name__ == '__main__':
     # sserver.start()
     # sserver2 = multiprocessing.Process(target=socket_server, args=('', 50003, x, 2))
     # sserver2.start()
-    sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data))
+    sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data,))
     sserver3.start()
-    sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data, stim_leg))
-    sserver4.start()
-    velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data, stim_leg))
+    #sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data, stim_leg,))
+    #sserver4.start()
+    velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data, stim_leg, velocity_queue,))
     velocity_process.start()
     # server(('', 50000))
 
@@ -786,5 +789,5 @@ if __name__ == '__main__':
     running.value = 0
     mserver.terminate()
     sserver3.terminate()
-    sserver4.terminate()
+    #sserver4.terminate()
     velocity_process.terminate()
