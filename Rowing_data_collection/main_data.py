@@ -32,7 +32,7 @@ from pypreprocessor import pypreprocessor
 #pypreprocessor.defines.append('lowpass')
 
 # calculate velocity with min and max values
-pypreprocessor.defines.append('minmax')
+#pypreprocessor.defines.append('minmax')
 
 # calculate velocity with crossing mean values
 #pypreprocessor.defines.append('cross_mean')
@@ -41,13 +41,13 @@ pypreprocessor.defines.append('minmax')
 #pypreprocessor.defines.append('period_only')
 
 #calculate velocity with predominant frequency of Fourier transform of the signal
-#pypreprocessor.defines.append('fourier')
+pypreprocessor.defines.append('fourier')
 
 # calculate velocity with delay
 #pypreprocessor.defines.append('delay')
 
 # print velocity calculation data
-#pypreprocessor.defines.append('velocity_print')
+pypreprocessor.defines.append('velocity_print')
 
 pypreprocessor.output = 'main_data_out.py'
 pypreprocessor.removeMeta = True
@@ -64,7 +64,6 @@ ang = multiprocessing.Array('d', size_of_graph)
 fes = multiprocessing.Array('d', size_of_graph)
 running = multiprocessing.Value('b')
 start_time = time.time()
-startup_velocity = False
 if real_time_plot:
 
     imu1_id = 8
@@ -188,7 +187,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data, velocit
     imu1 = [Quaternion(1, 0, 0, 0)]
     imu2 = [Quaternion(1, 0, 0, 0)]
     def update_plot():
-        global t, ang, fes, start_time, startup_velocity
+        global t, ang, fes, start_time
 
         t[0:-1] = t[1:]
         t[-1] = time.time() - start_time
@@ -242,7 +241,6 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data, velocit
                 server_data.append([time.time(), data])
                 imu_data[data[1]] = data[:]+['|']
                 if data[1] == 8:
-                    startup_velocity = True
                     velocity_queue.put(data)
                     #print('Received data:',data)
                     #print('{}'.format(source), ' - ', data[1], ' ', time.time() - start_time)
@@ -520,6 +518,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #ifdef delay
                                     #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
                                     selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 1 and 'amplitude' in dic]
+                                    delayed_sample = 0
                                     for delayed_sample in range(0,len(selected_signal_change) - 1):
                                         posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
                                         if selected_signal_change[delayed_sample]['concavity'] == 1 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] < min(posterior_samples)):
@@ -572,6 +571,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #ifdef delay
                                     #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
                                     selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 0 and 'amplitude' in dic]
+                                    delayed_sample = 0
                                     for delayed_sample in range(0,len(selected_signal_change) - 1):
                                         posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
                                         if selected_signal_change[delayed_sample]['concavity'] == 0 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] > max(posterior_samples)):
@@ -653,9 +653,9 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #endif
 
 #ifdef fourier
-                fourier_counter = fourier_counter + 1
-                if fourier_counter%100 == 0:
-                    freq_sample_size = 100
+                #fourier_counter = fourier_counter + 1
+                freq_sample_size = 200
+                if len(orientation_signal) >= freq_sample_size:
                     selected_samples = [dic['value'] for dic in orientation_signal][-freq_sample_size:]
                     sp = np.fft.fft(selected_samples)
                     freq = np.fft.fftfreq(freq_sample_size, (orientation_signal[-1]['time']-orientation_signal[-freq_sample_size]['time'])/(freq_sample_size-1))
