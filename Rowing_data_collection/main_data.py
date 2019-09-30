@@ -32,7 +32,7 @@ from pypreprocessor import pypreprocessor
 #pypreprocessor.defines.append('lowpass')
 
 # calculate velocity with min and max values
-#pypreprocessor.defines.append('minmax')
+pypreprocessor.defines.append('minmax')
 
 # calculate velocity with crossing mean values
 #pypreprocessor.defines.append('cross_mean')
@@ -41,7 +41,7 @@ from pypreprocessor import pypreprocessor
 #pypreprocessor.defines.append('period_only')
 
 #calculate velocity with predominant frequency of Fourier transform of the signal
-pypreprocessor.defines.append('fourier')
+#pypreprocessor.defines.append('fourier')
 
 # calculate velocity with delay
 #pypreprocessor.defines.append('delay')
@@ -181,7 +181,7 @@ def do_stuff(client, source, t, ang, fes, start_time, running, imu_data, velocit
         # server_timestamp, client_timestamp, msg
         # if IMU, msg = id, quaternions
         # if buttons, msg = state, current
-        [f.write(str(i)[1:-1].replace('[', '').replace(']', '') + '\r\n') for i in server_data]
+        [f.write(str(i)[1:-1].replace('[', '').replace(']', '') + '\n') for i in server_data]
         f.close()
 
     imu1 = [Quaternion(1, 0, 0, 0)]
@@ -307,7 +307,7 @@ def do_stuff_socket(client, source, x, channel):
         # server_timestamp, client_timestamp, msg
         # if IMU, msg = id, quaternions
         # if buttons, msg = state, current
-        [f.write(str(i)[1:-1].replace('[', '').replace(']', '') + '\r\n') for i in server_data]
+        [f.write(str(i)[1:-1].replace('[', '').replace(']', '') + '\n') for i in server_data]
         f.close()
 
 
@@ -423,12 +423,11 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
     last_positive_concavity_applied = -1 # Store the position of last sample in signal_change with positive concavity used to calculate velocity
     last_negative_concavity = -1 # Store the position of last point in signal_change with negative concavity
     last_negative_concavity_applied = -1  # Store the position of last point in signal_change with negative concavity used to calculate velocity
-    minimum_period = 0.33 # Minimum time allowed between samples in signal_change to calculated velocity
+    minimum_period = 0.2 # Minimum time allowed between samples in signal_change to calculated velocity
     calculated_velocity = 0
     initial_time = 0
     sample_rate = 100
     min_vel_delay = 0.25
-    fourier_counter = 0
 
     now = datetime.datetime.now()
     filename = now.strftime('%Y%m%d%H%M%S') + '_Velocity_data.txt'
@@ -436,6 +435,8 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
     
     while True:
         try:
+            if velocity_file.closed:
+                velocity_file = open(filename, 'a+')
             thread_start_time = time.time()
             queue_data = velocity_queue.get()
             # Wait and execute when there is new IMU sample
@@ -503,7 +504,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #endif
                         # Find the points in orientation signal when sign of derivative changes (-/+) and store in signal_change
                         if (orientation_signal[i-1]['derivative'] <= 0 and orientation_signal[i]['derivative'] > 0) or (orientation_signal[i-1]['derivative'] < 0 and orientation_signal[i]['derivative'] >= 0):
-                            signal_change.append({'time' : orientation_signal[i]['time'], 'concavity' : 1, 'value' : orientation_signal[i]['value']})
+                            signal_change.append({'time': orientation_signal[i]['time'], 'concavity': 1, 'value': orientation_signal[i]['value']})
 #ifdef minmax
                             # Apply the period as the difference between current and last_positive_concavity(_applied) time samples
                             if last_positive_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period and (last_negative_concavity == 0 or signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period/3):
@@ -516,19 +517,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                                 # Apply the velocity as amplitude divided by period
                                 if last_negative_concavity >= 0 and (last_positive_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period):
 #ifdef delay
-                                    #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
-                                    selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 1 and 'amplitude' in dic]
-                                    delayed_sample = 0
-                                    for delayed_sample in range(0,len(selected_signal_change) - 1):
-                                        posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
-                                        if selected_signal_change[delayed_sample]['concavity'] == 1 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] < min(posterior_samples)):
-#ifdef period_only
-                                            calculated_velocity = 1/selected_signal_change[delayed_sample]['period']
-#else
-                                            calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
-#endif
-                                            stim_leg[0] = 1
-                                            break
+                                    pass
 #else
 #ifdef period_only
                                     calculated_velocity = 1/signal_change[-1]['period']
@@ -536,27 +525,24 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
                                     stim_leg[0] = 1
-#endif
-                                    
+
 #ifdef velocity_print
-#ifdef delay
-                                    print('Calculated Velocity Positive -', selected_signal_change[delayed_sample]['amplitude'], selected_signal_change[delayed_sample]['period'])
-#else
                                     print('Calculated Velocity Positive -', signal_change[-1]['amplitude'], signal_change[-1]['period'])
 #endif
-#endif
+
+
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\n')
                                     velocity_file.flush()
                                     last_positive_concavity_applied =  len(signal_change) - 1
-                                    
+#endif
 #endif
                                 
                             last_positive_concavity = len(signal_change) - 1
                         
                         # Find the points in orientation signal when sign of derivative changes (+/-) and store in signal_change
                         elif (orientation_signal[i-1]['derivative'] >= 0 and orientation_signal[i]['derivative'] < 0) or (orientation_signal[i-1]['derivative'] > 0 and orientation_signal[i]['derivative'] <= 0):
-                            signal_change.append({'time' : orientation_signal[i]['time'], 'concavity' : 0, 'value' : orientation_signal[i]['value']})
+                            signal_change.append({'time': orientation_signal[i]['time'], 'concavity': 0, 'value': orientation_signal[i]['value']})
 #ifdef minmax
                             # Apply the period as the difference between current and last_negative_concavity(_applied) time samples
                             if last_negative_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period and (last_positive_concavity == 0 or signal_change[-1]['time'] - signal_change[last_positive_concavity]['time'] > minimum_period/3):
@@ -569,19 +555,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                                 # Apply the velocity as amplitude divided by period
                                 if (last_negative_concavity_applied < 0 or signal_change[-1]['period'] > minimum_period) and last_positive_concavity >= 0:
 #ifdef delay
-                                    #When calculating, the last signal_change may not be the lowest or highest value, so it is used a delayed sample
-                                    selected_signal_change = [dic for dic in signal_change if dic['concavity'] == 0 and 'amplitude' in dic]
-                                    delayed_sample = 0
-                                    for delayed_sample in range(0,len(selected_signal_change) - 1):
-                                        posterior_samples = [dic['value'] for dic in selected_signal_change][delayed_sample+1:len(selected_signal_change)]
-                                        if selected_signal_change[delayed_sample]['concavity'] == 0 and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample]['time'] >= min_vel_delay and selected_signal_change[-1]['time'] - selected_signal_change[delayed_sample + 1]['time'] < min_vel_delay and (len(posterior_samples) == 0 or selected_signal_change[delayed_sample]['value'] > max(posterior_samples)):
-#ifdef period_only
-                                            calculated_velocity = 1/selected_signal_change[delayed_sample]['period']
-#else
-                                            calculated_velocity = selected_signal_change[delayed_sample]['amplitude']/selected_signal_change[delayed_sample]['period']
-#endif
-                                            stim_leg[0] = -1
-                                            break
+                                    pass
 #else
 #ifdef period_only
                                     calculated_velocity = 1/signal_change[-1]['period']
@@ -589,19 +563,15 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                                     calculated_velocity = signal_change[-1]['amplitude']/signal_change[-1]['period']
 #endif
                                     stim_leg[0] = -1
-#endif
 
 #ifdef velocity_print
-#ifdef delay
-                                    print('Calculated Velocity Negative -', selected_signal_change[delayed_sample]['amplitude'], selected_signal_change[delayed_sample]['period'])
-#else
                                     print('Calculated Velocity Negative -', signal_change[-1]['amplitude'], signal_change[-1]['period'])
 #endif
-#endif
                                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
+                                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\n')
                                     velocity_file.flush()
                                     last_negative_concavity_applied = len(signal_change) - 1
+#endif
 #endif
                             
                             last_negative_concavity = len(signal_change) - 1
@@ -645,7 +615,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #endif
                         stim_leg[0] = -1 if signal_change[-1]['concavity'] == 0 else 1
                         imu_data['velocity'] = str(calculated_velocity) + '|'
-                        velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
+                        velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\n')
                         velocity_file.flush()
 #ifdef velocity_print
                         print('Calculated Velocity Zero -', mean_crossing_samples[-1]['derivative'], ' ', mean_crossing_samples[-1]['period'])
@@ -653,7 +623,6 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
 #endif
 
 #ifdef fourier
-                #fourier_counter = fourier_counter + 1
                 freq_sample_size = 200
                 if len(orientation_signal) >= freq_sample_size:
                     selected_samples = [dic['value'] for dic in orientation_signal][-freq_sample_size:]
@@ -668,13 +637,39 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                     calculated_velocity = main_freq*amplitude
 #endif
                     imu_data['velocity'] = str(calculated_velocity) + '|'
-                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\r\n')
+                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\n')
                     velocity_file.flush()
 #ifdef velocity_print
-                    print('Calculated Velocity Fourier -', main_freq, amplitude)
+                    print('Calculated Velocity Fourier -', amplitude, main_freq)
 #endif
 #endif
+                
+#ifdef delay
+                if len(signal_change) > 2:
+                    selected_signal_change = [dic for dic in signal_change if 'amplitude' in dic and 'period' in dic and min_vel_delay < signal_change[-1]['time'] - dic['time'] <= 4*min_vel_delay]
+                    recent_signal_change =   [dic for dic in signal_change if 'amplitude' in dic and 'period' in dic and signal_change[-1]['time'] - dic['time'] <= min_vel_delay]
+                    peak_selected = {}
+                    for sc in selected_signal_change[::-1]:
+                        if not recent_signal_change \
+                        or (sc['concavity'] == 0 and sc['value'] >= max([dic for dic in selected_signal_change if dic['concavity'] == 0] + [dic for dic in recent_signal_change if dic['concavity'] == 0], key=lambda x:x['value'])['value']) \
+                        or (sc['concavity'] == 1 and sc['value'] <= min([dic for dic in selected_signal_change if dic['concavity'] == 1] + [dic for dic in recent_signal_change if dic['concavity'] == 1], key=lambda x:x['value'])['value']):
+                            peak_selected = sc
+                            break
                     
+                    if peak_selected:
+#ifdef period_only
+                        calculated_velocity = 1/peak_selected['period']
+#else
+                        calculated_velocity = peak_selected['amplitude']/peak_selected['period']
+#endif
+#ifdef velocity_print
+                        print('Calculated Velocity Delay -', peak_selected['amplitude'], peak_selected['period'])
+#endif
+                    imu_data['velocity'] = str(calculated_velocity) + '|'
+                    velocity_file.write(str(time.time()) + ', ' + str(queue_data[1]) + ', ' + str(calculated_velocity) + '\n')
+                    velocity_file.flush()
+#endif
+
                 # Keep the size of the arrays below a defined threshold
                 if len(orientation_signal) > 1000:
                     del orientation_signal[0:sample_rate]
