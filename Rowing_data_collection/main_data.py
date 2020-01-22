@@ -423,7 +423,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
     last_positive_concavity_applied = -1 # Store the position of last sample in signal_change with positive concavity used to calculate velocity
     last_negative_concavity = -1 # Store the position of last point in signal_change with negative concavity
     last_negative_concavity_applied = -1  # Store the position of last point in signal_change with negative concavity used to calculate velocity
-    minimum_period = 0.2 # Minimum time allowed between samples in signal_change to calculated velocity
+    minimum_period = 0.3 # Minimum time allowed between samples in signal_change to calculated velocity
     calculated_velocity = 0
     initial_time = 0
     sample_rate = 100
@@ -507,7 +507,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                             signal_change.append({'time': orientation_signal[i]['time'], 'concavity': 1, 'value': orientation_signal[i]['value']})
 #ifdef minmax
                             # Apply the period as the difference between current and last_positive_concavity(_applied) time samples
-                            if last_positive_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period and (last_negative_concavity == 0 or signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period/3):
+                            if last_positive_concavity >= 0 and signal_change[-1]['time'] - signal_change[last_positive_concavity]['time'] > minimum_period and (last_negative_concavity == 0 or signal_change[-1]['time'] - signal_change[last_negative_concavity]['time'] > minimum_period/3):
                                 signal_change[-1]['period'] = signal_change[-1]['time'] - signal_change[last_positive_concavity_applied if last_positive_concavity_applied >= 0 else last_positive_concavity]['time']
 
                                 # Apply the amplitude as the difference between current and last_negative_concavity(_applied) value samples
@@ -607,7 +607,7 @@ def velocity_calculation(address, imu_data, stim_leg, velocity_queue):
                             if len(mean_crossing_samples) > 1:
                                 mean_crossing_samples[-1]['period'] = mean_crossing_samples[-1]['time'] - mean_crossing_samples[-2]['time']
                                 
-                    if len(mean_crossing_samples) > 1:            
+                    if len(mean_crossing_samples) > 1:
 #ifdef period_only
                         calculated_velocity = 1/mean_crossing_samples[-1]['period']
 #else
@@ -769,8 +769,8 @@ if __name__ == '__main__':
     # sserver2.start()
     sserver3 = multiprocessing.Process(target=vr_server, args=('', 50004, imu_data,))
     sserver3.start()
-    #sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data, stim_leg,))
-    #sserver4.start()
+    sserver4 = multiprocessing.Process(target=stim_server, args=('', 50005, imu_data, stim_leg,))
+    sserver4.start()
     velocity_process = multiprocessing.Process(target=velocity_calculation, args=('', imu_data, stim_leg, velocity_queue,))
     velocity_process.start()
     # server(('', 50000))
@@ -784,5 +784,5 @@ if __name__ == '__main__':
     running.value = 0
     mserver.terminate()
     sserver3.terminate()
-    #sserver4.terminate()
+    sserver4.terminate()
     velocity_process.terminate()
