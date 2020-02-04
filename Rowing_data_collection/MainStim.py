@@ -42,9 +42,9 @@ for w in a:
     print("\tPort:", w.device, "\tSerial#:", w.serial_number, "\tDesc:", w.description)
     if w.description == 'USB2.0-Serial':
         bd_addr = w.device
-    elif w.description == 'USB <-> Stimu_Control':
+    elif w.description == 'USB <-> Stimu_Control' or w.description.find('USB Serial Port') != -1:
         stimulatorPort = w.device
-
+print(stimulatorPort)
 # bd_addr = '/dev/cu.usbserial-1410'
 # stimulatorPort = 'stimPort'
 #sock = serial.Serial(bd_addr, baudrate=9600, timeout=0.1)
@@ -68,7 +68,7 @@ Temp = temp.decode()
 Temp = temp[0:8]
 if temp == 'conectou':
     statWait = False
-    statSend = False     
+    statSend = False
 '''
 print("Conectado")
 
@@ -80,8 +80,8 @@ while statWait:
     if len(parametros) > 1:
         statWait = False
 
-parametros = 'c004d000e000x000p300f040m001'
-        
+parametros = 'c008d000e000x000p300f050m001'
+
 if stimulation:
     serialStimulator = serial.Serial(stimulatorPort, baudrate=115200, timeout=0.1)
     stim = stimulator.Stimulator(serialStimulator)  # chama a classe
@@ -171,111 +171,116 @@ def running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, th
     # print(state)
     stim_state = 'stop'
     pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-    while state != 3:
-        #while sock.inWaiting() == 0:
-        #    pass
-        #state = int(sock.read(1))  # state = int(sock.read(1))
-        print('Running stim:',receiveStim)
-        #state_str = 0 if receiveStim < 0 else 3 #input('New mode: ')
-        state = int(receiveStim)
-        # print(state)
-        if mode == 1:  # Extensão B00000011 
-            if state == 1:
-                stim_state = 'extension1'
-                pw_str = [pw, 0, 0, 0, 0, 0, 0, 0]
-            elif state == -1:
-                stim_state = 'flexion1'
-                pw_str = [0, pw, 0, 0, 0, 0, 0, 0]
-            else:
-                stim_state = 'stop1'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-        elif mode == 2:  # Flexão B00001100
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
-        elif mode == 3:  # Extensão + Flexão B00001111
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
-        elif mode == 4:  # (Extensão & Aux_Ext) B00110011
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-        elif mode == 5:  # (Extensão & Aux_Ext) + Flexão B00111111
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
-        elif mode == 6:  # (Flexão & Aux_Flex) B11001100
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
-        elif mode == 7:  # Extensao + (Flexão & Aux_Flex) B11001111
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
-        elif mode == 8:  # (Extensão & Aux_Ext) + (Flexão & Aux_Flex) B11111111
-            if state == 0:
-                stim_state = 'stop'
-                pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
-            # stim.stop()
-            elif state == 1:
-                stim_state = 'extension'
-                pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
-            elif state == 2:
-                stim_state = 'flexion'
-                pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
-            # para usar 6 ou 8 canais eh necessario copiar o codigo logo acima e mudar somente o vetor pw,
-            # colocando-se pw no canal que se quer estimular
-        if stimulation:
-            #current_str = [10, 10, 0, 0, 0, 0, 0, 0]
-            stim.update(this_channels, pw_str, current_str)
-        print(stim_state, current_str, pw_str)
-        if connection:
-            # server.send(dict({'state':'Flexão', 'current':current_str}))
-            server.send([time.time(), stim_state, current_str])
+    try:
+        while state != 3:
+            #while sock.inWaiting() == 0:
+            #    pass
+            #state = int(sock.read(1))  # state = int(sock.read(1))
+            # print('Running stim:',receiveStim)
+            #state_str = 0 if receiveStim < 0 else 3 #input('New mode: ')
+            state = int(receiveStim)
+            # print(state)
+            if mode == 1:  # Extensão B00000011
+                if state == 1:
+                    stim_state = 'back'
+                    pw_str = [pw, 0, 0, 0, 0, 0, 0, 0]
+                elif state == -1:
+                    stim_state = 'front'
+                    pw_str = [0, pw, 0, 0, 0, 0, 0, 0]
+                else:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+            elif mode == 2:  # Flexão B00001100
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
+            elif mode == 3:  # Extensão + Flexão B00001111
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
+            elif mode == 4:  # (Extensão & Aux_Ext) B00110011
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+            elif mode == 5:  # (Extensão & Aux_Ext) + Flexão B00111111
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, 0, 0]
+            elif mode == 6:  # (Flexão & Aux_Flex) B11001100
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
+            elif mode == 7:  # Extensao + (Flexão & Aux_Flex) B11001111
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [pw, pw, 0, 0, 0, 0, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
+            elif mode == 8:  # (Extensão & Aux_Ext) + (Flexão & Aux_Flex) B11111111
+                if state == 0:
+                    stim_state = 'stop'
+                    pw_str = [0, 0, 0, 0, 0, 0, 0, 0]
+                # stim.stop()
+                elif state == 1:
+                    stim_state = 'extension'
+                    pw_str = [pw, pw, 0, 0, pw, pw, 0, 0]
+                elif state == 2:
+                    stim_state = 'flexion'
+                    pw_str = [0, 0, pw, pw, 0, 0, pw, pw]
+                # para usar 6 ou 8 canais eh necessario copiar o codigo logo acima e mudar somente o vetor pw,
+                # colocando-se pw no canal que se quer estimular
+            if stimulation:
+                #current_str = [10, 10, 0, 0, 0, 0, 0, 0]
+                stim.update(this_channels, pw_str, current_str)
+            # print(stim_state, current_str, pw_str)
+            if connection:
+                # server.send(dict({'state':'Flexão', 'current':current_str}))
+                server.send([time.time(), stim_state, current_str])
+
+    except Exception as e:
+            print('Running - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
+
 
 # Connect to the server
 def connect_server():
@@ -284,7 +289,7 @@ def connect_server():
     #while True:
         try:
             server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server.connect(('',50005))
+            server.connect(('localhost',50005))
             out_data = json.dumps('Stim')
             server.send(out_data.encode())
             while True:
@@ -293,7 +298,7 @@ def connect_server():
                 receiveStim = float(received_msg)
         except Exception as e:
             print('Connect_server - Exception raised: ', str(e), ', on line ', str(sys.exc_info()[2].tb_lineno))
-            
+
 def main():
     [current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels] = stim_setup()
     print(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
@@ -305,6 +310,7 @@ def main():
     running(current_CH12, current_CH34, current_CH56, current_CH78, pw, mode, channels)
 
     if stimulation:
+        stim.update(channels, [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0])
         stim.stop()
         serialStimulator.close()
     #sock.close()
